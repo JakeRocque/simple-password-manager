@@ -1,13 +1,11 @@
 //! TODO
 
-
-
-// file stored will literally be in bytes: 
-// header(34) + ciphertext(n)
+// file stored will literally be in bytes:
+// header(22) + ciphertext(n)
 // header:
-// salt(4) + version(2) + nonce(12) + salt(16)
+// magic(4) + version(2) + salt(16)
 // ciphertext:
-// encrypted text + tag
+// nonce + encrypted text & tag
 
 // AES
 // AES-256
@@ -32,7 +30,8 @@
 
 mod cli;
 mod core;
-mod models;
+pub(crate) mod error;
+mod model;
 
 fn main() {
     println!("Hello, world!");
