@@ -19,14 +19,16 @@
 // key storage
 // serialization
 
-// let mut file = Vec::new();
+// SOURCES:
+// crates: https://docs.rs/aes-gcm/latest/aes_gcm/#rustcrypto-aes-gcm, https://docs.rs/argon2/latest/argon2/, https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#examples,
+// https://doc.rust-lang.org/beta/std/fs/struct.File.html
 //
-// file.extend_from_slice(MAGIC);
-// file.extend_from_slice(VERSION);
-// file.extend_from_slice(&salt);
-// file.extend_from_slice(&nonce);
-// file.extend_from_slice(&ciphertext);
-// file.extend_from_slice(&tag);
+// file read/write: https://github.com/bitwarden/clients/blob/c08787d1f2a43aea47fd134048a2b47de8e4f212/apps/cli/src/utils.ts#L132, OpenOptions and File crates
+
+// STEPS:
+// crypto:
+// hash given password with unique, persisted salt and use that to generate a master key
+// encrypt/decrypt entries using master key and AAD of the heaer. header contains all other info in file written on disk. it has no clock or counter and is vulnerable to rollback attacks.
 
 mod cli;
 mod core;

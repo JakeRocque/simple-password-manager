@@ -1,31 +1,40 @@
 //! TODO
 
-use std::collections::BTreeMap;
+use core::fmt;
+#[cfg(test)]
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
-use zeroize::ZeroizeOnDrop;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
 
-#[derive(Debug, Serialize, Deserialize, ZeroizeOnDrop)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct VaultHeader {
     magic: [u8; 4],
     version: [u8; 2],
     salt: [u8; 16],
 }
 
-#[derive(Debug, Serialize, Deserialize, ZeroizeOnDrop)]
-pub struct Vault {
-    header: VaultHeader,
-    sealed_entries: Vec<u8>, // nonce || AES-GCM ciphertext & authentication tag
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
+pub struct Sealed {
+    nonce: [u8; 12],
+    ciphertext: Vec<u8>, //  AES-GCM ciphertext & authentication tag
 }
 
-#[derive(Serialize, Deserialize, ZeroizeOnDrop)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
+pub struct Vault {
+    header: VaultHeader,
+    sealed: Sealed,
+}
+
+#[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct Entry {
     username: String,
     password: String,
 }
 
-#[derive(Serialize, Deserialize, ZeroizeOnDrop)]
+#[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct Entries {
     entries: Vec<Entry>,
 }
@@ -51,6 +60,7 @@ impl VaultHeader {
         out
     }
 
+    /// TODO
     pub fn deserialize(bytes: &[u8; 22]) -> Self {
         let mut magic = [0u8; 4];
         let mut version = [0u8; 2];
@@ -68,14 +78,27 @@ impl VaultHeader {
     }
 }
 
+impl Sealed {
+    /// TODO
+    pub fn new(nonce: [u8; 12], ciphertext: Vec<u8>) -> Self {
+        Self { nonce, ciphertext }
+    }
+
+    /// TODO
+    pub fn nonce(&self) -> &[u8; 12] {
+        &self.nonce
+    }
+
+    /// TODO
+    pub fn ciphertext(&self) -> &Vec<u8> {
+        &self.ciphertext
+    }
+}
+
 impl Vault {
     /// TODO
-    pub fn new(header: VaultHeader,
-    sealed_entries: Vec<u8>) -> Self {
-        Self {
-            header,
-            sealed_entries,
-        }
+    pub fn new(header: VaultHeader, sealed: Sealed) -> Self {
+        Self { header, sealed }
     }
 }
 
@@ -99,13 +122,32 @@ impl Entry {
     }
 }
 
+impl fmt::Debug for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Entry")
+            .field("debug", &"[REDACTED]")
+            .finish()
+    }
+}
+
 impl Entries {
     /// TODO
     pub fn new(entries: Vec<Entry>) -> Self {
-        Self {
-            entries,
+        Self { entries }
+    }
+
+    /// TODO
+    pub fn entries(&self) -> &Vec<Entry> {
+        &self.entries
     }
 }
+
+impl fmt::Debug for Entries {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Entries")
+            .field("debug", &"[REDACTED]")
+            .finish()
+    }
 }
 
 #[cfg(test)]
