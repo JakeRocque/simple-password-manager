@@ -16,7 +16,7 @@ fn create_empty_vault(key: &Key<Aes256Gcm>, magic: [u8; 4], version: [u8; 2]) ->
 
     let sealed = encrypt_entries(
         key,
-        &Entries::new(vec![Entry::new("Salve,", "plurimum!")]),
+        &Entries::new(vec![Entry::new("Latin Class", "Salve,", "plurimum!")]),
         &header,
     )?;
 

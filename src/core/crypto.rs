@@ -36,7 +36,7 @@ pub fn encrypt_entries(
     header: &VaultHeader,
 ) -> Result<Sealed> {
     let entries_bytes: Zeroizing<Vec<u8>> =
-        Zeroizing::new(serde_json::to_vec(entries).map_err(Error::SerdeJson)?);  // TODO - can/should this line be tested? can/should zeroizing here be tested?
+        Zeroizing::new(serde_json::to_vec(entries).map_err(Error::SerdeJson)?); // TODO - can/should this line be tested? can/should zeroizing here be tested?
 
     encrypt(key, &entries_bytes, &header.serialize())
 }
@@ -63,7 +63,7 @@ pub fn decrypt_entries(
 ) -> Result<Zeroizing<Entries>> {
     let entries_bytes = Zeroizing::new(decrypt(key, sealed, &header.serialize())?);
 
-    let entries = serde_json::from_slice(&entries_bytes).map_err(Error::SerdeJson)?;  // TODO - can/should this line be tested? can/should zeroizing here be tested?
+    let entries = serde_json::from_slice(&entries_bytes).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested? can/should zeroizing here be tested?
 
     Ok(Zeroizing::new(entries))
 }
@@ -148,8 +148,8 @@ mod tests {
     fn test_encrypt_entries_decrypt_entries_roundtrip() {
         let key = Key::<Aes256Gcm>::generate();
         let entries = Entries::new(vec![
-            Entry::new("mikey123", "$dog29!"),
-            Entry::new("jbhockeyfan@gmail.com", "rang3rsFanNY?"),
+            Entry::new("gmail", "mikey123", "$dog29!"),
+            Entry::new("outlook", "jbhockeyfan@gmail.com", "rang3rsFanNY?"),
         ]);
         let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
 

@@ -30,6 +30,7 @@ pub struct Vault {
 
 #[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct Entry {
+    service: String,
     username: String,
     password: String,
 }
@@ -104,8 +105,9 @@ impl Vault {
 
 impl Entry {
     /// TODO
-    pub fn new(username: &str, password: &str) -> Self {
+    pub fn new(service: &str, username: &str, password: &str) -> Self {
         Self {
+            service: service.to_string(),
             username: username.to_string(),
             password: password.to_string(),
         }

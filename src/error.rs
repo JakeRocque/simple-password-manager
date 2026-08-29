@@ -1,6 +1,5 @@
 //! TODO
 
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("aes_gcm error: {0}")]
