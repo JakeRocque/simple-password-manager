@@ -1,8 +1,6 @@
 //! TODO
 
 use core::fmt;
-#[cfg(test)]
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -28,16 +26,21 @@ pub struct Vault {
     sealed: Sealed,
 }
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop, Zeroize)]
 pub struct Entry {
     service: String,
     username: String,
     password: String,
 }
 
-#[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop, Zeroize)]
 pub struct Entries {
     entries: Vec<Entry>,
+}
+
+#[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
+pub struct ServiceList {
+    services: Vec<String>,
 }
 
 impl VaultHeader {
