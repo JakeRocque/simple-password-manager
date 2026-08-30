@@ -160,12 +160,8 @@ impl Entry {
 
 impl fmt::Debug for Entry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        //     f.debug_struct("Entry")
-        //         .field("debug", &"[REDACTED]")
-        //         .finish()
-        // }
         f.debug_struct("Entry")
-            .field("debug", &self.service)
+            .field("debug", &"[REDACTED]")
             .finish()
     }
 }
@@ -182,8 +178,16 @@ impl Entries {
     }
 
     /// TODO
+    pub fn get_services(&self) -> Vec<String> {
+        self.entries
+            .iter()
+            .map(|e| e.service().to_string())
+            .collect()
+    }
+
+    /// TODO
     pub fn get_entry_by_service(&self, service: &str) -> Option<&Entry> {
-        self.entries.iter().find(|entry| entry.service == service)
+        self.entries.iter().find(|entry| entry.service() == service)
     }
 
     /// TODO
@@ -204,12 +208,28 @@ impl Entries {
 
 impl fmt::Debug for Entries {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        //     f.debug_struct("Entries")
-        //         .field("debug", &"[REDACTED]")
-        //         .finish()
-        // }
         f.debug_struct("Entries")
-            .field("debug", &self.entries)
+            .field("debug", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl ServiceList {
+    /// TODO
+    pub fn new(services: Vec<String>) -> Self {
+        Self { services }
+    }
+
+    /// TODO
+    pub fn services(&self) -> &[String] {
+        &self.services
+    }
+}
+
+impl fmt::Debug for ServiceList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ServiceList")
+            .field("debug", &"[REDACTED]")
             .finish()
     }
 }

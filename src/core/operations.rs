@@ -51,8 +51,11 @@ pub fn init(
 }
 
 /// TODO
-pub fn list(vault_path: &Path, key: &Key<Aes256Gcm>) -> Result<ServiceList> {
-    !todo!()
+pub fn list(vault_path: &Path, key: &Key<Aes256Gcm>) -> Result<Zeroizing<ServiceList>> {
+    let vault = read_vault_file(vault_path)?;
+    let entries = decrypt_entries(key, vault.sealed(), vault.header())?;
+
+    Ok(Zeroizing::new(ServiceList::new(entries.get_services()))) // Does this get_services create a zeroization issue with its copying?
 }
 
 fn empty_string_error(s: &str, e: Error) -> Result<()> {
@@ -154,8 +157,6 @@ mod tests {
         Aes256Gcm,
         aead::{Generate, Key},
     };
-    use argon2::password_hash::Error::SaltInvalid;
-    use clap::ArgAction::Append;
 
     fn create_relative_path(test_name: &str) -> std::path::PathBuf {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -238,6 +239,83 @@ mod tests {
         assert_eq!(vault.header().magic(), &magic);
         assert_eq!(vault.header().version(), &version);
         assert_eq!(entries, expected_entries.into());
+    }
+
+    #[test]
+    fn test_empty_string_error() {
+        assert_eq!(
+            empty_string_error("hello", Error::InvalidPassword).unwrap(),
+            ()
+        );
+        assert!(matches!(
+            empty_string_error("", Error::InvalidServiceName).unwrap_err(),
+            Error::InvalidServiceName
+        ));
+        assert!(matches!(
+            empty_string_error("", Error::InvalidUsername).unwrap_err(),
+            Error::InvalidUsername
+        ));
+        assert!(matches!(
+            empty_string_error("", Error::InvalidPassword).unwrap_err(),
+            Error::InvalidPassword
+        ));
+    }
+
+    #[test]
+    fn test_list() {
+        let path = create_relative_path("test_list");
+
+        let key = Key::<Aes256Gcm>::generate();
+        let magic = VAULT_MAGIC;
+        let version = [0x00; 0x02];
+
+        init(&path, false, &key, magic, version).unwrap();
+        let services1 = list(&path, &key).unwrap();
+        let expected_services1 = ServiceList::new(vec!["".to_string()]);
+
+        add(
+            &path,
+            &key,
+            "gmail".to_string().into(),
+            "mikey123".to_string().into(),
+            "$dog29!".to_string().into(),
+        )
+        .unwrap();
+        let services2 = list(&path, &key).unwrap();
+        let expected_services2 = ServiceList::new(vec!["".to_string(), "gmail".to_string()]);
+
+        add(
+            &path,
+            &key,
+            "outlook".to_string().into(),
+            "jbhockeyfan@gmail.com".to_string().into(),
+            "rang3rsFanNY?".to_string().into(),
+        )
+        .unwrap();
+        let services3 = list(&path, &key).unwrap();
+        let expected_services3 = ServiceList::new(vec![
+            "".to_string(),
+            "gmail".to_string(),
+            "outlook".to_string(),
+        ]);
+
+        assert_eq!(
+            services1.services().len(),
+            expected_services1.services().len()
+        );
+        assert_eq!(services1, expected_services1.into());
+
+        assert_eq!(
+            services2.services().len(),
+            expected_services2.services().len()
+        );
+        assert_eq!(services2, expected_services2.into());
+
+        assert_eq!(
+            services3.services().len(),
+            expected_services3.services().len()
+        );
+        assert_eq!(services3, expected_services3.into());
     }
 
     #[test]
@@ -419,7 +497,6 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
-        let salt = generate_salt();
         let service1 = "gmail";
         let service2 = "outlook";
 
