@@ -120,7 +120,26 @@ pub fn add(
 
 /// TODO
 pub fn delete(vault_path: &Path, key: &Key<Aes256Gcm>, service: Zeroizing<String>) -> Result<()> {
-    !todo!()
+    empty_string_error(&service, Error::InvalidServiceName)?;
+
+    let vault = read_vault_file(vault_path)?;
+    let header = vault.header();
+    let mut entries = decrypt_entries(key, vault.sealed(), header)?;
+
+    entries
+        .get_entry_by_service(&service)
+        .ok_or(Error::ServiceNotFound)?;
+
+    entries.remove_entry_by_service(&service);
+
+    let updated_vault = Vault::new(
+        VaultHeader::new(*header.magic(), *header.version(), *header.salt()),
+        encrypt_entries(key, &entries, header)?,
+    );
+
+    write_vault_file(vault_path, &updated_vault, true)?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -322,7 +341,7 @@ mod tests {
 
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
 
-        let expected_entrys = Entries::new(vec![
+        let expected_entries = Entries::new(vec![
             Entry::new(
                 DEFAULT_VAULT_ENTRY.0.to_string(),
                 DEFAULT_VAULT_ENTRY.1.to_string(),
@@ -383,13 +402,90 @@ mod tests {
 
         assert_eq!(vault.header().magic(), &magic);
         assert_eq!(vault.header().version(), &version);
-        assert_eq!(entries.entries().len(), expected_entrys.entries().len());
-        assert_eq!(entries, expected_entrys.into());
+        assert_eq!(entries.entries().len(), expected_entries.entries().len());
+        assert_eq!(entries, expected_entries.into());
         assert!(matches!(err1, Error::StdIo(_)));
         assert!(matches!(err2, Error::InvalidServiceName));
         assert!(matches!(err3, Error::InvalidUsername));
         assert!(matches!(err4, Error::InvalidPassword));
         assert!(matches!(err5, Error::InvalidServiceName));
         assert!(matches!(err6, Error::ServiceAlreadyExists));
+    }
+
+    #[test]
+    fn test_delete() {
+        let path = create_relative_path("test_delete");
+
+        let key = Key::<Aes256Gcm>::generate();
+        let magic = VAULT_MAGIC;
+        let version = [0x00; 0x02];
+        let salt = generate_salt();
+        let service1 = "gmail";
+        let service2 = "outlook";
+
+        let err1 = delete(&path, &key, service1.to_string().into()).unwrap_err();
+
+        init(&path, false, &key, magic, version).unwrap();
+        add(
+            &path,
+            &key,
+            service1.to_string().into(),
+            "mikey123".to_string().into(),
+            "$dog29!".to_string().into(),
+        )
+        .unwrap();
+        add(
+            &path,
+            &key,
+            service2.to_string().into(),
+            "jbhockeyfan@gmail.com".to_string().into(),
+            "rang3rsFanNY?".to_string().into(),
+        )
+        .unwrap();
+
+        let err2 = delete(&path, &key, "nonexistant".to_string().into()).unwrap_err();
+        let err3 = delete(&path, &key, "".to_string().into()).unwrap_err();
+
+        delete(&path, &key, service1.to_string().into()).unwrap();
+        let vault1 = read_vault_file(&path).unwrap();
+        let entries1 = decrypt_entries(&key, vault1.sealed(), vault1.header()).unwrap();
+        let expected_entries1 = Entries::new(vec![
+            Entry::new(
+                DEFAULT_VAULT_ENTRY.0.to_string(),
+                DEFAULT_VAULT_ENTRY.1.to_string(),
+                DEFAULT_VAULT_ENTRY.2.to_string(),
+            ),
+            Entry::new(
+                service2.to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
+        ]);
+
+        delete(&path, &key, service2.to_string().into()).unwrap();
+        let vault2 = read_vault_file(&path).unwrap();
+        let entries2 = decrypt_entries(&key, vault2.sealed(), vault2.header()).unwrap();
+        let expected_entries2 = Entries::new(vec![Entry::new(
+            DEFAULT_VAULT_ENTRY.0.to_string(),
+            DEFAULT_VAULT_ENTRY.1.to_string(),
+            DEFAULT_VAULT_ENTRY.2.to_string(),
+        )]);
+
+        let err4 = delete(&path, &key, service1.to_string().into()).unwrap_err();
+
+        assert_eq!(vault1.header().magic(), &magic);
+        assert_eq!(vault1.header().version(), &version);
+        assert_eq!(entries1.entries().len(), expected_entries1.entries().len());
+        assert_eq!(entries1, expected_entries1.into());
+
+        assert_eq!(vault2.header().magic(), &magic);
+        assert_eq!(vault2.header().version(), &version);
+        assert_eq!(entries2.entries().len(), expected_entries2.entries().len());
+        assert_eq!(entries2, expected_entries2.into());
+
+        assert!(matches!(err1, Error::StdIo(_)));
+        assert!(matches!(err2, Error::ServiceNotFound));
+        assert!(matches!(err3, Error::InvalidServiceName));
+        assert!(matches!(err4, Error::ServiceNotFound));
     }
 }

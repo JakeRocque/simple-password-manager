@@ -160,8 +160,12 @@ impl Entry {
 
 impl fmt::Debug for Entry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //     f.debug_struct("Entry")
+        //         .field("debug", &"[REDACTED]")
+        //         .finish()
+        // }
         f.debug_struct("Entry")
-            .field("debug", &"[REDACTED]")
+            .field("debug", &self.service)
             .finish()
     }
 }
@@ -182,15 +186,30 @@ impl Entries {
         self.entries.iter().find(|entry| entry.service == service)
     }
 
+    /// TODO
     pub fn add_entry(&mut self, service: String, username: String, password: String) {
         self.entries.push(Entry::new(service, username, password))
+    }
+
+    /// TODO
+    pub fn remove_entry_by_service(&mut self, service: &str) -> Option<Entry> {
+        let idx = self
+            .entries
+            .iter()
+            .position(|entry| entry.service() == service)?;
+
+        Some(self.entries.remove(idx))
     }
 }
 
 impl fmt::Debug for Entries {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //     f.debug_struct("Entries")
+        //         .field("debug", &"[REDACTED]")
+        //         .finish()
+        // }
         f.debug_struct("Entries")
-            .field("debug", &"[REDACTED]")
+            .field("debug", &self.entries)
             .finish()
     }
 }
