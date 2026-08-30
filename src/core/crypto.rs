@@ -53,7 +53,7 @@ pub fn encrypt_entries(
     let entries_bytes: Zeroizing<Vec<u8>> =
         Zeroizing::new(serde_json::to_vec(entries).map_err(Error::SerdeJson)?); // TODO - can/should this line be tested? can/should zeroizing here be tested?
 
-    encrypt(key, &entries_bytes, &header.serialize())
+    encrypt(key, &entries_bytes, &header.to_bytes())
 }
 
 fn decrypt(key: &Key<Aes256Gcm>, sealed: &Sealed, aad: &[u8]) -> Result<Vec<u8>> {
@@ -76,7 +76,7 @@ pub fn decrypt_entries(
     sealed: &Sealed,
     header: &VaultHeader,
 ) -> Result<Zeroizing<Entries>> {
-    let entries_bytes = Zeroizing::new(decrypt(key, sealed, &header.serialize())?);
+    let entries_bytes = Zeroizing::new(decrypt(key, sealed, &header.to_bytes())?);
 
     let entries = serde_json::from_slice(&entries_bytes).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested? can/should zeroizing here be tested?
 

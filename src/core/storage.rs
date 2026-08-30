@@ -4,11 +4,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
 
-use crate::model::Vault;
-use crate::{
-    error::{Error, Result},
-    model::{Entries, Sealed, VaultHeader},
-};
+use crate::error::{Error, Result};
+use crate::model::{VAULT_HEADER_LEN, Vault, VaultHeader};
 
 fn write_file(path: &Path, data: &[u8], overwrite: bool) -> Result<()> {
     let mut file = if overwrite {
@@ -33,7 +30,12 @@ fn write_file(path: &Path, data: &[u8], overwrite: bool) -> Result<()> {
 
 /// TODO
 pub fn write_vault_file(path: &Path, vault: &Vault, overwrite: bool) -> Result<()> {
-    let serialized_vault = serde_json::to_vec(vault).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
+    // let serialized_vault = serde_json::to_vec(vault).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
+
+    let mut serialized_vault = Vec::new();
+
+    serialized_vault.extend_from_slice(&vault.header().to_bytes());
+    serde_json::to_writer(&mut serialized_vault, vault.sealed()).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
 
     write_file(path, &serialized_vault, overwrite)
 }
@@ -44,9 +46,25 @@ fn read_file(path: &Path) -> Result<Vec<u8>> {
 
 /// TODO
 pub fn read_vault_file(path: &Path) -> Result<Vault> {
+    // let serialized_vault = read_file(path)?;
+
     let serialized_vault = read_file(path)?;
 
-    Ok(serde_json::from_slice(&serialized_vault).map_err(Error::SerdeJson)?) // TODO - can/should this line be tested?
+    if serialized_vault.len() < VAULT_HEADER_LEN {
+        return Err(Error::VaultHeaderInvalid);
+    }
+
+    let header = VaultHeader::from_bytes(
+        serialized_vault[..VAULT_HEADER_LEN]
+            .try_into()
+            .or(Err(Error::VaultHeaderDeserializationFailed))?,
+    );
+    let sealed =
+        serde_json::from_slice(&serialized_vault[VAULT_HEADER_LEN..]).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
+
+    Ok(Vault::new(header, sealed))
+
+    // Ok(serde_json::from_slice(&serialized_vault).map_err(Error::SerdeJson)?) // TODO - can/should this line be tested?
 }
 
 #[cfg(test)]
@@ -62,7 +80,7 @@ mod tests {
     use crate::{
         core::crypto::encrypt_entries,
         error::Error::{SerdeJson, StdIo},
-        model::{Entry, VAULT_MAGIC},
+        model::{Entries, Entry, VAULT_MAGIC, VaultHeader},
     };
 
     use super::*;
@@ -155,6 +173,18 @@ mod tests {
         let err = read_vault_file(&path).unwrap_err();
 
         assert!(matches!(err, SerdeJson(_)));
+    }
+
+    #[test]
+    fn test_read_vault_file_less_than_min_size() {
+        let path = create_relative_path("test_read_vault_file_less_than_min_size");
+        let data = b"Welcome.";
+
+        fs::write(&path, data).unwrap();
+
+        let err = read_vault_file(&path).unwrap_err();
+
+        assert!(matches!(err, Error::VaultHeaderInvalid));
     }
 
     #[test]

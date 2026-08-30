@@ -13,6 +13,11 @@ pub enum Error {
     #[error("argon2 error: {0}")]
     StdIo(#[from] std::io::Error),
 
+    #[error("inavlid vault header")]
+    VaultHeaderInvalid,
+    #[error("failed to deserialize vault header")]
+    VaultHeaderDeserializationFailed,
+
     #[error("inavlid service name")]
     InvalidServiceName,
     #[error("inavlid username")]

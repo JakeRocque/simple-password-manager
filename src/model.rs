@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
+pub const VAULT_HEADER_LEN: usize = 22;
 pub const DEFAULT_VAULT_ENTRY: (&str, &str, &str) = ("", "SALVE,", "PLVRIMVM");
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
@@ -70,8 +71,8 @@ impl VaultHeader {
     }
 
     /// TODO
-    pub fn serialize(&self) -> [u8; 22] {
-        let mut out = [0u8; 22];
+    pub fn to_bytes(&self) -> [u8; VAULT_HEADER_LEN] {
+        let mut out = [0u8; VAULT_HEADER_LEN];
 
         out[0..4].copy_from_slice(&self.magic);
         out[4..6].copy_from_slice(&self.version);
@@ -81,7 +82,7 @@ impl VaultHeader {
     }
 
     /// TODO
-    pub fn deserialize(bytes: &[u8; 22]) -> Self {
+    pub fn from_bytes(bytes: &[u8; VAULT_HEADER_LEN]) -> Self {
         let mut magic = [0u8; 4];
         let mut version = [0u8; 2];
         let mut salt = [0u8; 16];
@@ -236,8 +237,23 @@ impl fmt::Debug for ServiceList {
 
 #[cfg(test)]
 mod tests {
+    use argon2::password_hash::generate_salt;
+
     use super::*;
 
     #[test]
-    fn test_() {}
+    fn test_to_bytes_from_bytes_round_trip() {
+        let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x01], generate_salt());
+
+        // assert_eq!(header.serialize().)
+    }
+
+    #[test]
+    fn test_get_entry_by_service() {}
+
+    #[test]
+    fn test_add_entry() {}
+
+    #[test]
+    fn test_remove_entry_by_service() {}
 }

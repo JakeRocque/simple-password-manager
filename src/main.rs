@@ -1,6 +1,6 @@
 //! TODO
 
-// file stored will literally be in bytes:
+// vault struct -> json -> bytes -> written to disk:
 // header(22) + ciphertext(n)
 // header:
 // magic(4) + version(2) + salt(16)
@@ -28,7 +28,11 @@
 // STEPS:
 // crypto:
 // hash given password with unique, persisted salt and use that to generate a master key
-// encrypt/decrypt entries using master key and AAD of the heaer. header contains all other info in file written on disk. it has no clock or counter and is vulnerable to rollback attacks.
+// encrypt/decrypt entries using master key and AAD of the header. header contains all other info in file written on disk. it has no clock or counter and is vulnerable to rollback attacks.
+//
+
+// TODO:
+//
 
 mod cli;
 mod core;
