@@ -19,6 +19,11 @@ pub enum Error {
     InvalidUsername,
     #[error("inavlid password")]
     InvalidPassword,
+
+    #[error("service not found in the vault")]
+    ServiceNotFound,
+    #[error("service already exists in the vault")]
+    ServiceAlreadyExists,
 }
 
 /// Convenience type for Result

@@ -51,6 +51,8 @@ pub fn read_vault_file(path: &Path) -> Result<Vault> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use aes_gcm::{
         Aes256Gcm,
         aead::{Generate, Key},
@@ -59,7 +61,7 @@ mod tests {
 
     use crate::{
         core::crypto::encrypt_entries,
-        error::Error::StdIo,
+        error::Error::{SerdeJson, StdIo},
         model::{Entry, VAULT_MAGIC},
     };
 
@@ -144,13 +146,33 @@ mod tests {
     }
 
     #[test]
+    fn test_read_vault_file_non_vault_file() {
+        let path = create_relative_path("test_read_file_non_vault_file");
+        let data = b"Welcome to the information age.";
+
+        fs::write(&path, data).unwrap();
+
+        let err = read_vault_file(&path).unwrap_err();
+
+        assert!(matches!(err, SerdeJson(_)));
+    }
+
+    #[test]
     fn test_write_vault_file_read_vault_file_roundtrip() {
         let path = create_relative_path("test_write_vault_file_read_vault_file_roundtrip");
 
         let key = Key::<Aes256Gcm>::generate();
         let entries = Entries::new(vec![
-            Entry::new("gmail", "mikey123", "$dog29!"),
-            Entry::new("outlook", "jbhockeyfan@gmail.com", "rang3rsFanNY?"),
+            Entry::new(
+                "gmail".to_string(),
+                "mikey123".to_string(),
+                "$dog29!".to_string(),
+            ),
+            Entry::new(
+                "outlook".to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
         ]);
         let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
         let sealed = encrypt_entries(&key, &entries, &header).unwrap();

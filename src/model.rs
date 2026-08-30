@@ -3,9 +3,10 @@
 use core::fmt;
 
 use serde::{Deserialize, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
+pub const DEFAULT_VAULT_ENTRY: (&str, &str, &str) = ("", "SALVE,", "PLVRIMVM");
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct VaultHeader {
@@ -51,6 +52,21 @@ impl VaultHeader {
             version,
             salt,
         }
+    }
+
+    /// TODO
+    pub fn magic(&self) -> &[u8; 4] {
+        &self.magic
+    }
+
+    /// TODO
+    pub fn version(&self) -> &[u8; 2] {
+        &self.version
+    }
+
+    /// TODO
+    pub fn salt(&self) -> &[u8; 16] {
+        &self.salt
     }
 
     /// TODO
@@ -104,16 +120,31 @@ impl Vault {
     pub fn new(header: VaultHeader, sealed: Sealed) -> Self {
         Self { header, sealed }
     }
+
+    /// TODO
+    pub fn header(&self) -> &VaultHeader {
+        &self.header
+    }
+
+    /// TODO
+    pub fn sealed(&self) -> &Sealed {
+        &self.sealed
+    }
 }
 
 impl Entry {
     /// TODO
-    pub fn new(service: &str, username: &str, password: &str) -> Self {
+    pub fn new(service: String, username: String, password: String) -> Self {
         Self {
-            service: service.to_string(),
-            username: username.to_string(),
-            password: password.to_string(),
+            service: service,
+            username: username,
+            password: password,
         }
+    }
+
+    /// TODO
+    pub fn service(&self) -> &str {
+        &self.service
     }
 
     /// TODO
@@ -142,8 +173,17 @@ impl Entries {
     }
 
     /// TODO
-    pub fn entries(&self) -> &Vec<Entry> {
+    pub fn entries(&self) -> &[Entry] {
         &self.entries
+    }
+
+    /// TODO
+    pub fn get_entry_by_service(&self, service: &str) -> Option<&Entry> {
+        self.entries.iter().find(|entry| entry.service == service)
+    }
+
+    pub fn add_entry(&mut self, service: String, username: String, password: String) {
+        self.entries.push(Entry::new(service, username, password))
     }
 }
 

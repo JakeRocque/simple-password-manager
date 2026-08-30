@@ -245,8 +245,16 @@ mod tests {
     fn test_encrypt_entries_decrypt_entries_roundtrip() {
         let key = Key::<Aes256Gcm>::generate();
         let entries = Entries::new(vec![
-            Entry::new("gmail", "mikey123", "$dog29!"),
-            Entry::new("outlook", "jbhockeyfan@gmail.com", "rang3rsFanNY?"),
+            Entry::new(
+                "gmail".to_string(),
+                "mikey123".to_string(),
+                "$dog29!".to_string(),
+            ),
+            Entry::new(
+                "outlook".to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
         ]);
         let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
 
