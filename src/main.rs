@@ -32,7 +32,10 @@
 //
 
 // TODO:
-//
+// cli
+// rust docs + comments
+// main file level comment with explanations, details, crypto limits, sources, and process
+// readme either copying or very similar to main file level comment
 
 mod cli;
 mod core;

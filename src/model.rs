@@ -237,23 +237,223 @@ impl fmt::Debug for ServiceList {
 
 #[cfg(test)]
 mod tests {
-    use argon2::password_hash::generate_salt;
-
     use super::*;
+
+    use argon2::password_hash::generate_salt;
 
     #[test]
     fn test_to_bytes_from_bytes_round_trip() {
         let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x01], generate_salt());
 
-        // assert_eq!(header.serialize().)
+        assert_eq!(VaultHeader::from_bytes(&header.to_bytes()), header);
     }
 
     #[test]
-    fn test_get_entry_by_service() {}
+    fn test_get_services() {
+        assert_eq!(
+            ServiceList::new(Entries::new(vec![]).get_services()),
+            ServiceList::new(vec![])
+        );
+
+        assert_eq!(
+            ServiceList::new(
+                Entries::new(vec![Entry::new(
+                    "github".to_string(),
+                    "allab0uttheM3TS".to_string(),
+                    "$Dec301988$".to_string()
+                ),])
+                .get_services()
+            ),
+            ServiceList::new(vec!["github".to_string()])
+        );
+
+        assert_eq!(
+            ServiceList::new(
+                Entries::new(vec![
+                    Entry::new(
+                        "github".to_string(),
+                        "allab0uttheM3TS".to_string(),
+                        "$Dec301988$".to_string()
+                    ),
+                    Entry::new(
+                        "google".to_string(),
+                        "3aglesAllDay".to_string(),
+                        "Ph1llyFan17293?".to_string()
+                    ),
+                    Entry::new(
+                        "chase".to_string(),
+                        "Boston Red Sox".to_string(),
+                        "Jul41776".to_string()
+                    ),
+                ])
+                .get_services()
+            ),
+            ServiceList::new(vec![
+                "github".to_string(),
+                "google".to_string(),
+                "chase".to_string()
+            ])
+        );
+    }
 
     #[test]
-    fn test_add_entry() {}
+    fn test_get_entry_by_service() {
+        let entries = Entries::new(vec![
+            Entry::new(
+                "github".to_string(),
+                "allab0uttheM3TS".to_string(),
+                "$Dec301988$".to_string(),
+            ),
+            Entry::new(
+                "google".to_string(),
+                "3aglesAllDay".to_string(),
+                "Ph1llyFan17293?".to_string(),
+            ),
+            Entry::new(
+                "chase".to_string(),
+                "Boston Red Sox".to_string(),
+                "Jul41776".to_string(),
+            ),
+        ]);
+
+        assert_eq!(
+            entries.get_entry_by_service("google").unwrap(),
+            &Entry::new(
+                "google".to_string(),
+                "3aglesAllDay".to_string(),
+                "Ph1llyFan17293?".to_string()
+            )
+        );
+
+        assert_eq!(entries.get_entry_by_service("youtube"), None);
+
+        assert_eq!(Entries::new(vec![]).get_entry_by_service("google"), None);
+    }
 
     #[test]
-    fn test_remove_entry_by_service() {}
+    fn test_add_entry() {
+        let mut entries = Entries::new(vec![]);
+        assert_eq!(entries.entries(), vec![]);
+
+        entries.add_entry(
+            "github".to_string(),
+            "allab0uttheM3TS".to_string(),
+            "$Dec301988$".to_string(),
+        );
+        assert_eq!(
+            entries.entries(),
+            vec![Entry::new(
+                "github".to_string(),
+                "allab0uttheM3TS".to_string(),
+                "$Dec301988$".to_string()
+            ),]
+        );
+
+        entries.add_entry(
+            "google".to_string(),
+            "3aglesAllDay".to_string(),
+            "Ph1llyFan17293?".to_string(),
+        );
+        assert_eq!(
+            entries.entries(),
+            vec![
+                Entry::new(
+                    "github".to_string(),
+                    "allab0uttheM3TS".to_string(),
+                    "$Dec301988$".to_string()
+                ),
+                Entry::new(
+                    "google".to_string(),
+                    "3aglesAllDay".to_string(),
+                    "Ph1llyFan17293?".to_string()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_remove_entry_by_service() {
+        let mut entries = Entries::new(vec![
+            Entry::new(
+                "github".to_string(),
+                "allab0uttheM3TS".to_string(),
+                "$Dec301988$".to_string(),
+            ),
+            Entry::new(
+                "google".to_string(),
+                "3aglesAllDay".to_string(),
+                "Ph1llyFan17293?".to_string(),
+            ),
+            Entry::new(
+                "chase".to_string(),
+                "Boston Red Sox".to_string(),
+                "Jul41776".to_string(),
+            ),
+        ]);
+        assert_eq!(
+            entries.entries(),
+            vec![
+                Entry::new(
+                    "github".to_string(),
+                    "allab0uttheM3TS".to_string(),
+                    "$Dec301988$".to_string()
+                ),
+                Entry::new(
+                    "google".to_string(),
+                    "3aglesAllDay".to_string(),
+                    "Ph1llyFan17293?".to_string()
+                ),
+                Entry::new(
+                    "chase".to_string(),
+                    "Boston Red Sox".to_string(),
+                    "Jul41776".to_string()
+                ),
+            ]
+        );
+
+        entries.remove_entry_by_service(&"github");
+        assert_eq!(
+            entries.entries(),
+            vec![
+                Entry::new(
+                    "google".to_string(),
+                    "3aglesAllDay".to_string(),
+                    "Ph1llyFan17293?".to_string()
+                ),
+                Entry::new(
+                    "chase".to_string(),
+                    "Boston Red Sox".to_string(),
+                    "Jul41776".to_string()
+                ),
+            ]
+        );
+
+        let none = entries.remove_entry_by_service(&"fortnite");
+        assert_eq!(none, None);
+        assert_eq!(
+            entries.entries(),
+            vec![
+                Entry::new(
+                    "google".to_string(),
+                    "3aglesAllDay".to_string(),
+                    "Ph1llyFan17293?".to_string()
+                ),
+                Entry::new(
+                    "chase".to_string(),
+                    "Boston Red Sox".to_string(),
+                    "Jul41776".to_string()
+                ),
+            ]
+        );
+
+        entries.remove_entry_by_service(&"chase");
+        assert_eq!(
+            entries.entries(),
+            vec![Entry::new(
+                "google".to_string(),
+                "3aglesAllDay".to_string(),
+                "Ph1llyFan17293?".to_string()
+            ),]
+        );
+    }
 }
