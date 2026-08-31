@@ -144,6 +144,23 @@ impl Entry {
     }
 
     /// TODO
+    pub fn to_cli_string(&self, show_password: bool) -> String {
+        let password = if show_password {
+            &self.password.to_string()
+        } else {
+            "[REDACTED]"
+        };
+
+        format!(
+            "{}\n{}\nUsername: {}\nPassword: {}",
+            self.service,
+            "─".repeat(self.service.len()),
+            self.username,
+            password,
+        )
+    }
+
+    /// TODO
     pub fn service(&self) -> &str {
         &self.service
     }
@@ -219,6 +236,16 @@ impl ServiceList {
     /// TODO
     pub fn new(services: Vec<String>) -> Self {
         Self { services }
+    }
+
+    /// TODO
+    pub fn to_cli_string(&self) -> String {
+        format!(
+            "{}\n{}\n{}",
+            "Services",
+            "-".repeat("Services".len()),
+            self.services.join("\n")
+        )
     }
 
     /// TODO

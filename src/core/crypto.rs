@@ -8,27 +8,7 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
     aead::{Aead, Generate, Key, KeyInit, Payload},
 };
-use argon2::Argon2;
 use zeroize::Zeroizing;
-
-fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zeroizing<[u8; 32]>> {
-    let argon2 = Argon2::default();
-
-    let mut key_bytes = Zeroizing::new([0u8; 32]);
-    argon2
-        .hash_password_into(password.as_bytes(), salt, &mut *key_bytes)
-        .map_err(Error::Argon2)?;
-
-    Ok(Zeroizing::new(*key_bytes))
-}
-
-/// TODO
-pub fn key_from_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Key<Aes256Gcm>> {
-    let key_bytes = derive_key_bytes(password, salt)?;
-
-    // Caller must handle key zeroization.
-    Ok(Key::<Aes256Gcm>::from(*key_bytes))
-}
 
 fn encrypt(key: &Key<Aes256Gcm>, message: &[u8], aad: &[u8]) -> Result<Sealed> {
     let cipher = Aes256Gcm::new(&key);
@@ -89,88 +69,6 @@ mod tests {
     use argon2::password_hash::generate_salt;
 
     use crate::model::{Entry, VAULT_MAGIC};
-
-    #[test]
-    fn test_derive_key_bytes_ok() {
-        let password = Zeroizing::new("super_secret".to_string());
-        let salt = generate_salt();
-
-        let key_bytes = derive_key_bytes(&password, &salt).unwrap();
-
-        assert_eq!(key_bytes.len(), 32);
-    }
-
-    #[test]
-    fn test_derive_key_bytes_same_password_salt_same_key() {
-        let password = Zeroizing::new("super_secret".to_string());
-        let salt = generate_salt();
-
-        let key_bytes1 = derive_key_bytes(&password, &salt).unwrap();
-        let key_bytes2 = derive_key_bytes(&password, &salt).unwrap();
-
-        assert_eq!(key_bytes1, key_bytes2);
-    }
-
-    #[test]
-    fn test_derive_key_bytes_different_password_salt_different_key() {
-        let password1 = Zeroizing::new("super_secret".to_string());
-        let password2 = Zeroizing::new("super_duper_secret".to_string());
-        let salt1 = generate_salt();
-        let salt2 = generate_salt();
-
-        let key_bytes1 = derive_key_bytes(&password1, &salt1).unwrap();
-        let key_bytes2 = derive_key_bytes(&password1, &salt2).unwrap();
-        let key_bytes3 = derive_key_bytes(&password2, &salt1).unwrap();
-        let key_bytes4 = derive_key_bytes(&password2, &salt2).unwrap();
-
-        assert_ne!(key_bytes1, key_bytes2);
-        assert_ne!(key_bytes1, key_bytes3);
-        assert_ne!(key_bytes1, key_bytes4);
-        assert_ne!(key_bytes2, key_bytes3);
-        assert_ne!(key_bytes2, key_bytes4);
-        assert_ne!(key_bytes3, key_bytes4);
-    }
-
-    #[test]
-    fn test_key_from_bytes_ok() {
-        let password = Zeroizing::new("super_secret".to_string());
-        let salt = generate_salt();
-
-        let key = key_from_bytes(&password, &salt).unwrap();
-
-        assert_eq!(key.len(), 32);
-    }
-
-    #[test]
-    fn test_key_from_bytes_same_password_salt_same_key() {
-        let password = Zeroizing::new("super_secret".to_string());
-        let salt = generate_salt();
-
-        let key1 = key_from_bytes(&password, &salt).unwrap();
-        let key2 = key_from_bytes(&password, &salt).unwrap();
-
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn test_key_from_bytes_different_password_salt_different_key() {
-        let password1 = Zeroizing::new("super_secret".to_string());
-        let password2 = Zeroizing::new("super_duper_secret".to_string());
-        let salt1 = generate_salt();
-        let salt2 = generate_salt();
-
-        let key1 = derive_key_bytes(&password1, &salt1).unwrap();
-        let key2 = derive_key_bytes(&password1, &salt2).unwrap();
-        let key3 = derive_key_bytes(&password2, &salt1).unwrap();
-        let key4 = derive_key_bytes(&password2, &salt2).unwrap();
-
-        assert_ne!(key1, key2);
-        assert_ne!(key1, key3);
-        assert_ne!(key1, key4);
-        assert_ne!(key2, key3);
-        assert_ne!(key2, key4);
-        assert_ne!(key3, key4);
-    }
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {

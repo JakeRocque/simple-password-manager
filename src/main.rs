@@ -37,11 +37,12 @@
 // main file level comment with explanations, details, crypto limits, sources, and process
 // readme either copying or very similar to main file level comment
 
+pub(crate) mod error;
+
 mod cli;
 mod core;
-pub(crate) mod error;
 mod model;
 
 fn main() {
-    println!("Hello, world!");
+    cli::run();
 }

@@ -8,9 +8,10 @@ use crate::{
         storage::{read_vault_file, write_vault_file},
     },
     error::{Error, Result},
-    model::{DEFAULT_VAULT_ENTRY, Sealed, ServiceList},
+    model::{DEFAULT_VAULT_ENTRY, ServiceList},
 };
 use aes_gcm::{Aes256Gcm, Key};
+use argon2::Argon2;
 use argon2::password_hash::generate_salt;
 use zeroize::Zeroizing;
 
@@ -19,9 +20,31 @@ use crate::{
     model::{Entries, Entry, Vault, VaultHeader},
 };
 
-fn create_empty_vault(key: &Key<Aes256Gcm>, magic: [u8; 4], version: [u8; 2]) -> Result<Vault> {
-    let salt = generate_salt();
+fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zeroizing<[u8; 32]>> {
+    let argon2 = Argon2::default();
 
+    let mut key_bytes = Zeroizing::new([0u8; 32]);
+    argon2
+        .hash_password_into(password.as_bytes(), salt, &mut *key_bytes)
+        .map_err(Error::Argon2)?;
+
+    Ok(Zeroizing::new(*key_bytes))
+}
+
+/// TODO
+pub fn key_from_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Key<Aes256Gcm>> {
+    let key_bytes = derive_key_bytes(password, salt)?;
+
+    // Caller must handle key zeroization.
+    Ok(Key::<Aes256Gcm>::from(*key_bytes))
+}
+
+fn create_empty_vault(
+    key: &Key<Aes256Gcm>,
+    magic: [u8; 4],
+    version: [u8; 2],
+    salt: [u8; 16],
+) -> Result<Vault> {
     let header = VaultHeader::new(magic, version, salt);
 
     let sealed = encrypt_entries(
@@ -38,14 +61,22 @@ fn create_empty_vault(key: &Key<Aes256Gcm>, magic: [u8; 4], version: [u8; 2]) ->
 }
 
 /// TODO
+pub fn get_salt(vault_path: &Path) -> Result<[u8; 16]> {
+    let vault = read_vault_file(vault_path)?;
+
+    Ok(*vault.header().salt())
+}
+
+/// TODO
 pub fn init(
     vault_path: &Path,
     overwrite: bool,
     key: &Key<Aes256Gcm>,
     magic: [u8; 4],
     version: [u8; 2],
+    salt: [u8; 16],
 ) -> Result<()> {
-    let vault = create_empty_vault(key, magic, version)?;
+    let vault = create_empty_vault(key, magic, version, salt)?;
 
     write_vault_file(vault_path, &vault, overwrite)
 }
@@ -174,12 +205,95 @@ mod tests {
     }
 
     #[test]
+    fn test_derive_key_bytes_ok() {
+        let password = Zeroizing::new("super_secret".to_string());
+        let salt = generate_salt();
+
+        let key_bytes = derive_key_bytes(&password, &salt).unwrap();
+
+        assert_eq!(key_bytes.len(), 32);
+    }
+
+    #[test]
+    fn test_derive_key_bytes_same_password_salt_same_key() {
+        let password = Zeroizing::new("super_secret".to_string());
+        let salt = generate_salt();
+
+        let key_bytes1 = derive_key_bytes(&password, &salt).unwrap();
+        let key_bytes2 = derive_key_bytes(&password, &salt).unwrap();
+
+        assert_eq!(key_bytes1, key_bytes2);
+    }
+
+    #[test]
+    fn test_derive_key_bytes_different_password_salt_different_key() {
+        let password1 = Zeroizing::new("super_secret".to_string());
+        let password2 = Zeroizing::new("super_duper_secret".to_string());
+        let salt1 = generate_salt();
+        let salt2 = generate_salt();
+
+        let key_bytes1 = derive_key_bytes(&password1, &salt1).unwrap();
+        let key_bytes2 = derive_key_bytes(&password1, &salt2).unwrap();
+        let key_bytes3 = derive_key_bytes(&password2, &salt1).unwrap();
+        let key_bytes4 = derive_key_bytes(&password2, &salt2).unwrap();
+
+        assert_ne!(key_bytes1, key_bytes2);
+        assert_ne!(key_bytes1, key_bytes3);
+        assert_ne!(key_bytes1, key_bytes4);
+        assert_ne!(key_bytes2, key_bytes3);
+        assert_ne!(key_bytes2, key_bytes4);
+        assert_ne!(key_bytes3, key_bytes4);
+    }
+
+    #[test]
+    fn test_key_from_bytes_ok() {
+        let password = Zeroizing::new("super_secret".to_string());
+        let salt = generate_salt();
+
+        let key = key_from_bytes(&password, &salt).unwrap();
+
+        assert_eq!(key.len(), 32);
+    }
+
+    #[test]
+    fn test_key_from_bytes_same_password_salt_same_key() {
+        let password = Zeroizing::new("super_secret".to_string());
+        let salt = generate_salt();
+
+        let key1 = key_from_bytes(&password, &salt).unwrap();
+        let key2 = key_from_bytes(&password, &salt).unwrap();
+
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn test_key_from_bytes_different_password_salt_different_key() {
+        let password1 = Zeroizing::new("super_secret".to_string());
+        let password2 = Zeroizing::new("super_duper_secret".to_string());
+        let salt1 = generate_salt();
+        let salt2 = generate_salt();
+
+        let key1 = derive_key_bytes(&password1, &salt1).unwrap();
+        let key2 = derive_key_bytes(&password1, &salt2).unwrap();
+        let key3 = derive_key_bytes(&password2, &salt1).unwrap();
+        let key4 = derive_key_bytes(&password2, &salt2).unwrap();
+
+        assert_ne!(key1, key2);
+        assert_ne!(key1, key3);
+        assert_ne!(key1, key4);
+        assert_ne!(key2, key3);
+        assert_ne!(key2, key4);
+        assert_ne!(key3, key4);
+    }
+
+    #[test]
     fn test_create_empty_vault_ok() {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
 
-        let vault = create_empty_vault(&key, magic, version).unwrap();
+        let vault = create_empty_vault(&key, magic, version, salt).unwrap();
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
 
         let expected_entries = Entries::new(vec![Entry::new(
@@ -200,8 +314,9 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
 
-        init(&path, true, &key, magic, version).unwrap();
+        init(&path, true, &key, magic, version, salt).unwrap();
 
         let vault = read_vault_file(&path).unwrap();
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
@@ -224,8 +339,9 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
 
-        init(&path, false, &key, magic, version).unwrap();
+        init(&path, false, &key, magic, version, salt).unwrap();
 
         let vault = read_vault_file(&path).unwrap();
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
@@ -268,8 +384,9 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
 
-        init(&path, false, &key, magic, version).unwrap();
+        init(&path, false, &key, magic, version, salt).unwrap();
         let services1 = list(&path, &key).unwrap();
         let expected_services1 = ServiceList::new(vec!["".to_string()]);
 
@@ -380,6 +497,7 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
         let service1 = "gmail";
         let service2 = "outlook";
         let username1 = "pabloT27";
@@ -396,7 +514,7 @@ mod tests {
         )
         .unwrap_err();
 
-        init(&path, false, &key, magic, version).unwrap();
+        init(&path, false, &key, magic, version, salt).unwrap();
 
         add(
             &path,
@@ -497,12 +615,13 @@ mod tests {
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
         let version = [0x00; 0x02];
+        let salt = generate_salt();
         let service1 = "gmail";
         let service2 = "outlook";
 
         let err1 = delete(&path, &key, service1.to_string().into()).unwrap_err();
 
-        init(&path, false, &key, magic, version).unwrap();
+        init(&path, false, &key, magic, version, salt).unwrap();
         add(
             &path,
             &key,
