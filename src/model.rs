@@ -137,9 +137,9 @@ impl Entry {
     /// TODO
     pub fn new(service: String, username: String, password: String) -> Self {
         Self {
-            service: service,
-            username: username,
-            password: password,
+            service,
+            username,
+            password,
         }
     }
 

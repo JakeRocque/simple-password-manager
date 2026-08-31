@@ -4,11 +4,11 @@ use std::path::Path;
 
 use crate::{
     core::{
-        crypto::{encrypt_entries, decrypt_entries},
+        crypto::{decrypt_entries, encrypt_entries},
         storage::{read_vault_file, write_vault_file},
     },
     error::{Error, Result},
-    model::{DEFAULT_VAULT_ENTRY, Entries, Entry, Vault, VaultHeader, ServiceList},
+    model::{DEFAULT_VAULT_ENTRY, Entries, Entry, ServiceList, Vault, VaultHeader},
 };
 use aes_gcm::{Aes256Gcm, Key};
 use argon2::Argon2;

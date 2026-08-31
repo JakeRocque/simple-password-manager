@@ -199,7 +199,7 @@ pub fn run() {
             std::process::exit(1);
         }
         Ok(s) => {
-            println!("{}", &*s)
+            println!("{}", *s)
         }
     }
     print!("\n\n");

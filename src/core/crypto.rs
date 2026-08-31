@@ -11,13 +11,10 @@ use aes_gcm::{
 use zeroize::Zeroizing;
 
 fn encrypt(key: &Key<Aes256Gcm>, message: &[u8], aad: &[u8]) -> Result<Sealed> {
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
 
     let nonce = Nonce::generate();
-    let payload = Payload {
-        msg: message,
-        aad: aad,
-    };
+    let payload = Payload { msg: message, aad };
 
     let ciphertext = cipher.encrypt(&nonce, payload).map_err(Error::AesGcm)?;
 
@@ -37,10 +34,10 @@ pub fn encrypt_entries(
 }
 
 fn decrypt(key: &Key<Aes256Gcm>, sealed: &Sealed, aad: &[u8]) -> Result<Vec<u8>> {
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
     let payload = Payload {
         msg: sealed.ciphertext(),
-        aad: aad,
+        aad,
     };
 
     let message = cipher
