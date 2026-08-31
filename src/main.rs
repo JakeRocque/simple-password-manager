@@ -21,7 +21,7 @@
 
 // SOURCES:
 // crates: https://docs.rs/aes-gcm/latest/aes_gcm/#rustcrypto-aes-gcm, https://docs.rs/argon2/latest/argon2/, https://doc.rust-lang.org/std/fs/struct.OpenOptions.html#examples,
-// https://doc.rust-lang.org/beta/std/fs/struct.File.html
+// https://doc.rust-lang.org/beta/std/fs/struct.File.html, https://www.reddit.com/r/rust/comments/yfharn/write_tests_around_the_file_system/
 //
 // file read/write: https://github.com/bitwarden/clients/blob/c08787d1f2a43aea47fd134048a2b47de8e4f212/apps/cli/src/utils.ts#L132, OpenOptions and File crates
 

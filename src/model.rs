@@ -3,7 +3,7 @@
 use core::fmt;
 
 use serde::{Deserialize, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
 pub const VAULT_HEADER_LEN: usize = 22;
@@ -191,6 +191,7 @@ impl Entries {
     }
 
     /// TODO
+    #[allow(dead_code)]
     pub fn entries(&self) -> &[Entry] {
         &self.entries
     }
@@ -249,6 +250,7 @@ impl ServiceList {
     }
 
     /// TODO
+    #[allow(dead_code)]
     pub fn services(&self) -> &[String] {
         &self.services
     }

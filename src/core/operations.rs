@@ -4,21 +4,15 @@ use std::path::Path;
 
 use crate::{
     core::{
-        crypto::decrypt_entries,
+        crypto::{encrypt_entries, decrypt_entries},
         storage::{read_vault_file, write_vault_file},
     },
     error::{Error, Result},
-    model::{DEFAULT_VAULT_ENTRY, ServiceList},
+    model::{DEFAULT_VAULT_ENTRY, Entries, Entry, Vault, VaultHeader, ServiceList},
 };
 use aes_gcm::{Aes256Gcm, Key};
 use argon2::Argon2;
-use argon2::password_hash::generate_salt;
 use zeroize::Zeroizing;
-
-use crate::{
-    core::crypto::encrypt_entries,
-    model::{Entries, Entry, Vault, VaultHeader},
-};
 
 fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zeroizing<[u8; 32]>> {
     let argon2 = Argon2::default();
@@ -188,6 +182,7 @@ mod tests {
         Aes256Gcm,
         aead::{Generate, Key},
     };
+    use argon2::password_hash::generate_salt;
 
     fn create_relative_path(test_name: &str) -> std::path::PathBuf {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
