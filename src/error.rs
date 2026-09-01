@@ -8,10 +8,17 @@ pub enum Error {
     AesGcmInvalidLength(#[from] aes_gcm::aes::cipher::InvalidLength),
     #[error("serde_json error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+    #[error("toml::ser error: {0}")]
+    TomlSer(#[from] toml::ser::Error),
+    #[error("toml::de error: {0}")]
+    TomlDe(#[from] toml::de::Error),
     #[error("serde_json error: {0}")]
     Argon2(#[from] argon2::Error),
     #[error("argon2 error: {0}")]
     StdIo(#[from] std::io::Error),
+
+    #[error("default system local data directory not found")]
+    DataLocalDirNotFound,
 
     #[error("inavlid vault header")]
     VaultHeaderInvalid,

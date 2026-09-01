@@ -1,11 +1,11 @@
 //! TODO
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     core::{
         crypto::{decrypt_entries, encrypt_entries},
-        storage::{read_vault_file, write_vault_file},
+        storage::{delete_vault_dir, read_vault_file, vault_path, write_vault_file},
     },
     error::{Error, Result},
     model::{DEFAULT_VAULT_ENTRY, Entries, Entry, ServiceList, Vault, VaultHeader},
@@ -13,6 +13,16 @@ use crate::{
 use aes_gcm::{Aes256Gcm, Key};
 use argon2::Argon2;
 use zeroize::Zeroizing;
+
+/// TODO
+pub fn get_vault_path() -> PathBuf {
+    vault_path().expect("Default path failure, use manual path")
+}
+
+/// TODO
+pub fn is_default_vault_init() -> bool {
+    get_vault_path().exists()
+}
 
 fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zeroizing<[u8; 32]>> {
     let argon2 = Argon2::default();
@@ -31,6 +41,13 @@ pub fn key_from_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<K
 
     // Caller must handle key zeroization.
     Ok(Key::<Aes256Gcm>::from(*key_bytes))
+}
+
+/// TODO
+pub fn get_salt(vault_path: &Path) -> Result<[u8; 16]> {
+    let vault = read_vault_file(vault_path)?;
+
+    Ok(*vault.header().salt())
 }
 
 fn create_empty_vault(
@@ -55,16 +72,10 @@ fn create_empty_vault(
 }
 
 /// TODO
-pub fn get_salt(vault_path: &Path) -> Result<[u8; 16]> {
-    let vault = read_vault_file(vault_path)?;
-
-    Ok(*vault.header().salt())
-}
-
-/// TODO
-pub fn init(
+pub fn init_vault(
     vault_path: &Path,
     overwrite: bool,
+    parent_dirs: bool,
     key: &Key<Aes256Gcm>,
     magic: [u8; 4],
     version: [u8; 2],
@@ -72,7 +83,12 @@ pub fn init(
 ) -> Result<()> {
     let vault = create_empty_vault(key, magic, version, salt)?;
 
-    write_vault_file(vault_path, &vault, overwrite)
+    write_vault_file(vault_path, &vault, overwrite, parent_dirs)
+}
+
+/// TODO
+pub fn delete_vault(path: &Path) -> Result<()> {
+    delete_vault_dir(path)
 }
 
 /// TODO
@@ -141,7 +157,7 @@ pub fn add(
         encrypt_entries(key, &entries, header)?,
     );
 
-    write_vault_file(vault_path, &updated_vault, true)?;
+    write_vault_file(vault_path, &updated_vault, true, false)?;
 
     Ok(())
 }
@@ -165,13 +181,15 @@ pub fn delete(vault_path: &Path, key: &Key<Aes256Gcm>, service: Zeroizing<String
         encrypt_entries(key, &entries, header)?,
     );
 
-    write_vault_file(vault_path, &updated_vault, true)?;
+    write_vault_file(vault_path, &updated_vault, true, false)?;
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
     use crate::{
         core::{crypto::decrypt_entries, storage::read_vault_file},
@@ -184,19 +202,18 @@ mod tests {
     };
     use argon2::password_hash::generate_salt;
 
-    fn create_relative_path(test_name: &str) -> std::path::PathBuf {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn create_relative_path(test_name: &str) -> PathBuf {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tmp")
-            .join(test_name)
-            .with_extension("txt");
+            .join(test_name);
 
-        if path.exists() {
-            std::fs::remove_file(&path).unwrap();
+        if dir.exists() {
+            fs::remove_dir_all(&dir).unwrap();
         }
 
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::create_dir_all(&dir).unwrap();
 
-        path
+        dir.join("test.txt")
     }
 
     #[test]
@@ -311,7 +328,7 @@ mod tests {
         let version = [0x00; 0x02];
         let salt = generate_salt();
 
-        init(&path, true, &key, magic, version, salt).unwrap();
+        init_vault(&path, true, false, &key, magic, version, salt).unwrap();
 
         let vault = read_vault_file(&path).unwrap();
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
@@ -336,7 +353,7 @@ mod tests {
         let version = [0x00; 0x02];
         let salt = generate_salt();
 
-        init(&path, false, &key, magic, version, salt).unwrap();
+        init_vault(&path, false, false, &key, magic, version, salt).unwrap();
 
         let vault = read_vault_file(&path).unwrap();
         let entries = decrypt_entries(&key, vault.sealed(), vault.header()).unwrap();
@@ -381,7 +398,7 @@ mod tests {
         let version = [0x00; 0x02];
         let salt = generate_salt();
 
-        init(&path, false, &key, magic, version, salt).unwrap();
+        init_vault(&path, false, false, &key, magic, version, salt).unwrap();
         let services1 = list(&path, &key).unwrap();
         let expected_services1 = ServiceList::new(vec!["".to_string()]);
 
@@ -459,7 +476,7 @@ mod tests {
 
         let err1 = get(&path, &key, service1.to_string().into()).unwrap_err();
 
-        write_vault_file(&path, &vault, false).unwrap();
+        write_vault_file(&path, &vault, false, false).unwrap();
 
         let entry1 = get(&path, &key, service1.to_string().into()).unwrap();
         let entry2 = get(&path, &key, service2.to_string().into()).unwrap();
@@ -509,7 +526,7 @@ mod tests {
         )
         .unwrap_err();
 
-        init(&path, false, &key, magic, version, salt).unwrap();
+        init_vault(&path, false, false, &key, magic, version, salt).unwrap();
 
         add(
             &path,
@@ -616,7 +633,7 @@ mod tests {
 
         let err1 = delete(&path, &key, service1.to_string().into()).unwrap_err();
 
-        init(&path, false, &key, magic, version, salt).unwrap();
+        init_vault(&path, false, false, &key, magic, version, salt).unwrap();
         add(
             &path,
             &key,

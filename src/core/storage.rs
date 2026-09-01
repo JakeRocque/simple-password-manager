@@ -2,12 +2,31 @@
 
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
-use crate::model::{VAULT_HEADER_LEN, Vault, VaultHeader};
+use crate::model::{FOLDER_NAME, VAULT_HEADER_LEN, Vault, VaultHeader};
 
-fn write_file(path: &Path, data: &[u8], overwrite: bool) -> Result<()> {
+/// TODO
+pub fn vault_path() -> Result<PathBuf> {
+    let data_dir = dirs::data_local_dir().ok_or(Error::DataLocalDirNotFound)?;
+
+    Ok(data_dir.join(FOLDER_NAME).join("vault.txt"))
+}
+
+fn create_dir_all(path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(Error::StdIo)?;
+    }
+
+    Ok(())
+}
+
+fn write_file(path: &Path, data: &[u8], overwrite: bool, parent_dirs: bool) -> Result<()> {
+    if parent_dirs {
+        create_dir_all(path)?;
+    }
+
     let mut file = if overwrite {
         OpenOptions::new()
             .write(true)
@@ -29,15 +48,18 @@ fn write_file(path: &Path, data: &[u8], overwrite: bool) -> Result<()> {
 }
 
 /// TODO
-pub fn write_vault_file(path: &Path, vault: &Vault, overwrite: bool) -> Result<()> {
-    // let serialized_vault = serde_json::to_vec(vault).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
-
+pub fn write_vault_file(
+    path: &Path,
+    vault: &Vault,
+    overwrite: bool,
+    parent_dirs: bool,
+) -> Result<()> {
     let mut serialized_vault = Vec::new();
 
     serialized_vault.extend_from_slice(&vault.header().to_bytes());
     serde_json::to_writer(&mut serialized_vault, vault.sealed()).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
 
-    write_file(path, &serialized_vault, overwrite)
+    write_file(path, &serialized_vault, overwrite, parent_dirs)
 }
 
 fn read_file(path: &Path) -> Result<Vec<u8>> {
@@ -46,8 +68,6 @@ fn read_file(path: &Path) -> Result<Vec<u8>> {
 
 /// TODO
 pub fn read_vault_file(path: &Path) -> Result<Vault> {
-    // let serialized_vault = read_file(path)?;
-
     let serialized_vault = read_file(path)?;
 
     if serialized_vault.len() < VAULT_HEADER_LEN {
@@ -63,8 +83,15 @@ pub fn read_vault_file(path: &Path) -> Result<Vault> {
         serde_json::from_slice(&serialized_vault[VAULT_HEADER_LEN..]).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
 
     Ok(Vault::new(header, sealed))
+}
 
-    // Ok(serde_json::from_slice(&serialized_vault).map_err(Error::SerdeJson)?) // TODO - can/should this line be tested?
+fn delete_dir(path: &Path) -> Result<()> {
+    std::fs::remove_dir_all(path).map_err(Error::StdIo)
+}
+
+/// TODO
+pub fn delete_vault_dir(path: &Path) -> Result<()> {
+    delete_dir(path)
 }
 
 #[cfg(test)]
@@ -85,19 +112,44 @@ mod tests {
 
     use super::*;
 
-    fn create_relative_path(test_name: &str) -> std::path::PathBuf {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn create_relative_path(test_name: &str) -> PathBuf {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tmp")
-            .join(test_name)
-            .with_extension("txt");
+            .join(test_name);
 
-        if path.exists() {
-            std::fs::remove_file(&path).unwrap();
+        if dir.exists() {
+            fs::remove_dir_all(&dir).unwrap();
         }
 
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::create_dir_all(&dir).unwrap();
 
-        path
+        dir.join("test.txt")
+    }
+
+    fn create_relative_path_no_parent(test_name: &str) -> std::path::PathBuf {
+        create_relative_path(test_name)
+            .join("nonexistent")
+            .join("file.txt")
+    }
+
+    #[test]
+    fn test_vault_path_ok() {
+        let path = dirs::data_local_dir()
+            .unwrap()
+            .join(FOLDER_NAME)
+            .join("vault")
+            .with_extension("txt");
+
+        assert_eq!(vault_path().unwrap(), path)
+    }
+
+    #[test]
+    fn test_create_dir_all_() {
+        let path = create_relative_path_no_parent("test_create_dir_all_");
+
+        create_dir_all(&path).unwrap();
+
+        assert!(path.parent().unwrap().exists())
     }
 
     #[test]
@@ -105,18 +157,18 @@ mod tests {
         let path = create_relative_path("test_write_file_read_file_roundtrip");
         let data = b"Welcome to the information age.";
 
-        write_file(&path, &data.to_vec(), false).unwrap();
+        write_file(&path, &data.to_vec(), false, false).unwrap();
         let result = read_file(&path).unwrap();
 
         assert_eq!(result, data);
     }
 
     #[test]
-    fn test_write_file_read_file_roundtrip_emty() {
-        let path = create_relative_path("test_write_file_read_file_roundtrip_emty");
+    fn test_write_file_read_file_roundtrip_empty() {
+        let path = create_relative_path("test_write_file_read_file_roundtrip_empty");
         let data = b"";
 
-        write_file(&path, &data.to_vec(), false).unwrap();
+        write_file(&path, &data.to_vec(), false, false).unwrap();
         let result = read_file(&path).unwrap();
 
         assert_eq!(result, data);
@@ -128,9 +180,9 @@ mod tests {
         let data1 = b"Welcome to the information age.";
         let data2 = b"This should not overwrite the message.";
 
-        write_file(&path, &data1.to_vec(), false).unwrap();
+        write_file(&path, &data1.to_vec(), false, false).unwrap();
 
-        let err = write_file(&path, &data2.to_vec(), false).unwrap_err();
+        let err = write_file(&path, &data2.to_vec(), false, false).unwrap_err();
         let result = read_file(&path).unwrap();
 
         assert!(matches!(err, StdIo(_)));
@@ -143,8 +195,8 @@ mod tests {
         let data1 = b"Welcome to the information age.";
         let data2 = b"This should overwrite the message.";
 
-        write_file(&path, &data1.to_vec(), false).unwrap();
-        write_file(&path, &data2.to_vec(), true).unwrap();
+        write_file(&path, &data1.to_vec(), false, false).unwrap();
+        write_file(&path, &data2.to_vec(), true, false).unwrap();
 
         let result = read_file(&path).unwrap();
 
@@ -156,7 +208,29 @@ mod tests {
         let path = create_relative_path("test_write_file_path_doesnt_already_exist_overwrite");
         let data = b"Welcome to the information age.";
 
-        write_file(&path, &data.to_vec(), true).unwrap();
+        write_file(&path, &data.to_vec(), true, false).unwrap();
+
+        let result = read_file(&path).unwrap();
+
+        assert_eq!(result, data);
+    }
+
+    #[test]
+    fn test_write_file_create_parent_dir_fail() {
+        let path = create_relative_path_no_parent("test_write_file_create_parent_dir_fail");
+        let data = b"Welcome to the information age.";
+
+        let err = write_file(&path, &data.to_vec(), true, false).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)));
+    }
+
+    #[test]
+    fn test_write_file_ok_create_parent_dir() {
+        let path = create_relative_path_no_parent("test_write_file_ok_create_parent_dir");
+        let data = b"Welcome to the information age.";
+
+        write_file(&path, &data.to_vec(), true, true).unwrap();
 
         let result = read_file(&path).unwrap();
 
@@ -211,9 +285,55 @@ mod tests {
             sealed,
         );
 
-        write_vault_file(&path, &vault, false).unwrap();
+        write_vault_file(&path, &vault, false, false).unwrap();
         let result = read_vault_file(&path).unwrap();
 
         assert_eq!(result, vault);
+    }
+
+    #[test]
+    fn test_delete_dir_ok() {
+        let path = create_relative_path_no_parent("test_delete_dir_ok");
+        let data = b"Welcome to the information age.";
+
+        write_file(&path, &data.to_vec(), false, true).unwrap();
+        delete_dir(&path.parent().unwrap()).unwrap();
+
+        let err = read_file(&path.parent().unwrap()).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)));
+    }
+
+    #[test]
+    fn test_delete_dir_file() {
+        let path = create_relative_path("test_delete_dir_file");
+        let data = b"Welcome to the information age.";
+
+        write_file(&path, &data.to_vec(), false, false).unwrap();
+        let err = delete_dir(&path).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)));
+    }
+
+    #[test]
+    fn test_delete_dir_doesnt_exist() {
+        let path = Path::new("tmp/test_delete_dir_doesnt_exist/file.txt");
+
+        let err = delete_dir(&path).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)));
+    }
+
+    #[test]
+    fn test_delete_vault_dir_ok() {
+        let path = create_relative_path_no_parent("test_delete_vault_dir_ok");
+        let data = b"Welcome to the information age.";
+
+        write_file(&path, &data.to_vec(), false, true).unwrap();
+        delete_vault_dir(&path.parent().unwrap()).unwrap();
+
+        let err = read_file(&path.parent().unwrap()).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)));
     }
 }

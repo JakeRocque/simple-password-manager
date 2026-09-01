@@ -3,7 +3,9 @@
 use std::path::PathBuf;
 
 use crate::{
-    core::operations::{add, delete, get, get_salt, list},
+    core::operations::{
+        add, delete, delete_vault, get, get_salt, get_vault_path, is_default_vault_init, list,
+    },
     error::{Error, Result},
 };
 use argon2::password_hash::generate_salt;
@@ -11,7 +13,7 @@ use clap::{Parser, Subcommand};
 use zeroize::Zeroizing;
 
 use crate::{
-    core::operations::{init, key_from_bytes},
+    core::operations::{init_vault, key_from_bytes},
     model::VAULT_MAGIC,
 };
 
@@ -24,41 +26,43 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Initialize the empty vault at a given location
-    Init {
+    /// Check if default vault has been initialized
+    Health {},
+    /// Initialize the empty vault
+    InitVault {
         /// Vault password
         master_password: Zeroizing<String>,
         /// Vault version
         version: u16,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = default_vault_path(true))]
+        #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
     },
-    /// Delete the password vault at a given location
-    // DeleteVault {
-    //     /// Location of the vault
-    //     #[arg(short, long, default_value_os_t = default_vault_path(false))]
-    //     path: PathBuf,
-    // },
-    /// List out all saved services
+    /// Delete the vault
+    DeleteVault {
+        /// Location of the vault
+        #[arg(short, long, default_value_os_t = get_vault_path())]
+        path: PathBuf,
+    },
+    /// List saved services
     List {
         /// Vault password
         master_password: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = default_vault_path(false))]
+        #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
     },
-    /// Get an entry (service, username, password) from the vault
+    /// Get an entry (service, username, password)
     Get {
         /// Vault password
         master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = default_vault_path(false))]
+        #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
     },
-    /// Add an entry to the vault
+    /// Add an entry
     Add {
         /// Vault password
         master_password: Zeroizing<String>,
@@ -69,31 +73,19 @@ enum Commands {
         /// password of new service
         password: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = default_vault_path(false))]
+        #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
     },
 
-    /// Delete an entry from the vault
+    /// Delete an entry
     Delete {
         /// Vault password
         master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
-        #[arg(short, long, default_value_os_t = default_vault_path(false))]
+        #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
     },
-}
-
-fn default_vault_path(create: bool) -> PathBuf {
-    let dir = dirs::data_dir()
-        .expect("Could not determine user data directory")
-        .join("jakeys-password-vault");
-
-    if create {
-        std::fs::create_dir_all(&dir).expect("Could not create password vault directory");
-    }
-
-    dir.join("vault.txt")
 }
 
 fn display_error(e: Error) {
@@ -104,16 +96,21 @@ fn eval() -> Result<Zeroizing<String>> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Init {
+        Commands::Health {} => match is_default_vault_init() {
+            true => return Ok(Zeroizing::new("Default vault initialized.".to_string())),
+            false => return Ok(Zeroizing::new("Default vault not initialized.".to_string())),
+        },
+        Commands::InitVault {
             path,
             master_password,
             version,
         } => {
             let salt = generate_salt();
 
-            init(
+            init_vault(
                 &path,
                 false,
+                true,
                 &key_from_bytes(&master_password, &salt)?,
                 VAULT_MAGIC,
                 version.to_be_bytes(),
@@ -124,9 +121,11 @@ fn eval() -> Result<Zeroizing<String>> {
                 "Successfully initialized vault.".to_string(),
             ))
         }
-        // Commands::DeleteVault { path } => {
-        //     // TODO
-        // }
+        Commands::DeleteVault { path } => {
+            delete_vault(&path)?;
+
+            Ok(Zeroizing::new("Successfully deleted vault.".to_string()))
+        }
         Commands::List {
             path,
             master_password,

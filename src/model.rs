@@ -1,10 +1,12 @@
 //! TODO
 
 use core::fmt;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+pub const FOLDER_NAME: &str = "jakeys-password-vault";
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
 pub const VAULT_HEADER_LEN: usize = 22;
 pub const DEFAULT_VAULT_ENTRY: (&str, &str, &str) = ("", "SALVE,", "PLVRIMVM");
