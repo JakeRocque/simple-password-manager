@@ -1,7 +1,6 @@
 //! TODO
 
 use core::fmt;
-use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
