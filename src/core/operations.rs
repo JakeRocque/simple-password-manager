@@ -4,11 +4,8 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     core::{
-        crypto::{decrypt_entries, encrypt_entries},
-        storage::{delete_vault_dir, read_vault_file, vault_path, write_vault_file},
-    },
-    error::{Error, Result},
-    model::{DEFAULT_VAULT_ENTRY, Entries, Entry, ServiceList, Vault, VaultHeader},
+        crypto::{decrypt_entries, encrypt_entries}, storage::{custom_path_dir_to_path, read_vault_file, vault_path, write_vault_file},
+    }, error::{Error, Result}, model::{DEFAULT_VAULT_ENTRY, Entries, Entry, ServiceList, Vault, VaultHeader},
 };
 use aes_gcm::{Aes256Gcm, Key};
 use argon2::Argon2;
@@ -17,6 +14,11 @@ use zeroize::Zeroizing;
 /// TODO
 pub fn get_vault_path() -> PathBuf {
     vault_path().expect("Default path failure, use manual path")
+}
+
+/// TODO
+pub fn get_custom_path_dir_to_path(path: &Path) -> PathBuf {
+    custom_path_dir_to_path(path).expect("Default path failure, use manual path")
 }
 
 /// TODO
@@ -84,11 +86,6 @@ pub fn init_vault(
     let vault = create_empty_vault(key, magic, version, salt)?;
 
     write_vault_file(vault_path, &vault, overwrite, parent_dirs)
-}
-
-/// TODO
-pub fn delete_vault(path: &Path) -> Result<()> {
-    delete_vault_dir(path)
 }
 
 /// TODO
@@ -225,6 +222,21 @@ mod tests {
             .with_extension("txt");
 
         assert_eq!(get_vault_path(), path)
+    }
+
+    #[test]
+    fn test_get_scustom_path_to_dir() {
+        let custom_dir = create_relative_path("test_custom_path_to_dir")
+            .parent()
+            .unwrap()
+            .to_path_buf();
+
+        let path = custom_dir
+            .join(FOLDER_NAME)
+            .join("vault")
+            .with_extension("txt");
+
+        assert_eq!(custom_path_dir_to_path(&custom_dir).unwrap(), path);
     }
 
     #[test]
@@ -394,23 +406,6 @@ mod tests {
         assert_eq!(vault.header().magic(), &magic);
         assert_eq!(vault.header().version(), &version);
         assert_eq!(entries, expected_entries.into());
-    }
-
-    #[test]
-    fn test_delete_vault() {
-        let path = create_relative_path("test_delete_vault");
-
-        let key = Key::<Aes256Gcm>::generate();
-        let magic = VAULT_MAGIC;
-        let version = [0x00; 0x02];
-        let salt = generate_salt();
-
-        init_vault(&path, true, false, &key, magic, version, salt).unwrap();
-        delete_vault(&path.parent().unwrap()).unwrap();
-
-        let err = read_vault_file(&path).unwrap_err();
-
-        assert!(matches!(err, Error::StdIo(_)))
     }
 
     #[test]

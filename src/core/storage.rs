@@ -14,6 +14,15 @@ pub fn vault_path() -> Result<PathBuf> {
     Ok(data_dir.join(FOLDER_NAME).join("vault.txt"))
 }
 
+/// TODO
+pub fn custom_path_dir_to_path(path: &Path) -> Result<PathBuf> {
+    if !path.is_dir() {
+        return Err(Error::PathNotDir)
+    }
+
+    Ok(path.join(FOLDER_NAME).join("vault.txt"))
+}
+
 fn create_dir_all(path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(Error::StdIo)?;
@@ -85,15 +94,6 @@ pub fn read_vault_file(path: &Path) -> Result<Vault> {
     Ok(Vault::new(header, sealed))
 }
 
-fn delete_dir(path: &Path) -> Result<()> {
-    std::fs::remove_dir_all(path).map_err(Error::StdIo)
-}
-
-/// TODO
-pub fn delete_vault_dir(path: &Path) -> Result<()> {
-    delete_dir(path)
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -141,6 +141,21 @@ mod tests {
             .with_extension("txt");
 
         assert_eq!(vault_path().unwrap(), path)
+    }
+
+    #[test]
+    fn test_custom_path_to_dir() {
+        let custom_dir = create_relative_path("test_custom_path_to_dir")
+            .parent()
+            .unwrap()
+            .to_path_buf();
+
+        let path = custom_dir
+            .join(FOLDER_NAME)
+            .join("vault")
+            .with_extension("txt");
+
+        assert_eq!(custom_path_dir_to_path(&custom_dir).unwrap(), path);
     }
 
     #[test]
@@ -289,51 +304,5 @@ mod tests {
         let result = read_vault_file(&path).unwrap();
 
         assert_eq!(result, vault);
-    }
-
-    #[test]
-    fn test_delete_dir_ok() {
-        let path = create_relative_path_no_parent("test_delete_dir_ok");
-        let data = b"Welcome to the information age.";
-
-        write_file(&path, &data.to_vec(), false, true).unwrap();
-        delete_dir(&path.parent().unwrap()).unwrap();
-
-        let err = read_file(&path.parent().unwrap()).unwrap_err();
-
-        assert!(matches!(err, Error::StdIo(_)));
-    }
-
-    #[test]
-    fn test_delete_dir_file() {
-        let path = create_relative_path("test_delete_dir_file");
-        let data = b"Welcome to the information age.";
-
-        write_file(&path, &data.to_vec(), false, false).unwrap();
-        let err = delete_dir(&path).unwrap_err();
-
-        assert!(matches!(err, Error::StdIo(_)));
-    }
-
-    #[test]
-    fn test_delete_dir_doesnt_exist() {
-        let path = Path::new("tmp/test_delete_dir_doesnt_exist/file.txt");
-
-        let err = delete_dir(&path).unwrap_err();
-
-        assert!(matches!(err, Error::StdIo(_)));
-    }
-
-    #[test]
-    fn test_delete_vault_dir_ok() {
-        let path = create_relative_path_no_parent("test_delete_vault_dir_ok");
-        let data = b"Welcome to the information age.";
-
-        write_file(&path, &data.to_vec(), false, true).unwrap();
-        delete_vault_dir(&path.parent().unwrap()).unwrap();
-
-        let err = read_file(&path.parent().unwrap()).unwrap_err();
-
-        assert!(matches!(err, Error::StdIo(_)));
     }
 }

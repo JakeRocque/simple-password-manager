@@ -4,9 +4,8 @@ use std::path::PathBuf;
 
 use crate::{
     core::operations::{
-        add, delete, delete_vault, get, get_salt, get_vault_path, is_vault_init, list,
-    },
-    error::{Error, Result},
+        add, delete, get, get_custom_path_dir_to_path, get_salt, get_vault_path, is_vault_init, list,
+    }, error::{Error, Result},
 };
 use argon2::password_hash::generate_salt;
 use clap::{Parser, Subcommand};
@@ -26,10 +25,13 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Check if vault has been initialized
+    /// Check if vault has been initialized and default vault location
     Health {
         #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
+    },
+    /// Get the default vault file location
+    DefaultLocation {
     },
     /// Initialize the empty vault
     InitVault {
@@ -37,12 +39,6 @@ enum Commands {
         master_password: Zeroizing<String>,
         /// Vault version
         version: u16,
-        /// Location of the vault
-        #[arg(short, long, default_value_os_t = get_vault_path())]
-        path: PathBuf,
-    },
-    /// Delete the vault
-    DeleteVault {
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path())]
         path: PathBuf,
@@ -100,9 +96,13 @@ fn eval() -> Result<Zeroizing<String>> {
 
     match args.command {
         Commands::Health { path } => match is_vault_init(&path) {
-            true => return Ok(Zeroizing::new("Default vault initialized.".to_string())),
-            false => return Ok(Zeroizing::new("Default vault not initialized.".to_string())),
+            true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
+            false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
+        Commands::DefaultLocation {   
+        } => {
+            Ok(Zeroizing::new(get_vault_path().to_str().ok_or(Error::DefaultVaultLocationNotFound)?.to_string()))
+        }
         Commands::InitVault {
             path,
             master_password,
@@ -111,7 +111,7 @@ fn eval() -> Result<Zeroizing<String>> {
             let salt = generate_salt();
 
             init_vault(
-                &path,
+                &get_custom_path_dir_to_path(&path),
                 false,
                 true,
                 &key_from_bytes(&master_password, &salt)?,
@@ -120,23 +120,21 @@ fn eval() -> Result<Zeroizing<String>> {
                 salt,
             )?;
 
-            Ok(Zeroizing::new(
-                "Successfully initialized vault.".to_string(),
-            ))
-        }
-        Commands::DeleteVault { path } => {
-            delete_vault(&path)?;
-
-            Ok(Zeroizing::new("Successfully deleted vault.".to_string()))
+            Ok(Zeroizing::new(format!(
+                "Successfully initialized vault at '{}'. Do not change this folder name.",
+                path.display()
+            )))
         }
         Commands::List {
             path,
             master_password,
         } => {
-            let salt = get_salt(&path)?;
+            let true_path = get_custom_path_dir_to_path(&path);
+
+            let salt = get_salt(&true_path)?;
 
             let result = Zeroizing::new(
-                list(&path, &key_from_bytes(&master_password, &salt)?)?.to_cli_string(),
+                list(&true_path, &key_from_bytes(&master_password, &salt)?)?.to_cli_string(),
             );
 
             Ok(result)
@@ -146,10 +144,12 @@ fn eval() -> Result<Zeroizing<String>> {
             master_password,
             service,
         } => {
-            let salt = get_salt(&path)?;
+            let true_path = get_custom_path_dir_to_path(&path);
+
+            let salt = get_salt(&true_path)?;
 
             let result = Zeroizing::new(
-                get(&path, &key_from_bytes(&master_password, &salt)?, service)?.to_cli_string(true),
+                get(&true_path, &key_from_bytes(&master_password, &salt)?, service)?.to_cli_string(true),
             );
 
             Ok(result)
@@ -161,10 +161,12 @@ fn eval() -> Result<Zeroizing<String>> {
             username,
             password,
         } => {
-            let salt = get_salt(&path)?;
+            let true_path = get_custom_path_dir_to_path(&path);
+
+            let salt = get_salt(&true_path)?;
 
             add(
-                &path,
+                &true_path,
                 &key_from_bytes(&master_password, &salt)?,
                 service,
                 username,
@@ -178,10 +180,12 @@ fn eval() -> Result<Zeroizing<String>> {
             master_password,
             service,
         } => {
-            let salt = get_salt(&path)?;
+            let true_path = get_custom_path_dir_to_path(&path);
+
+            let salt = get_salt(&true_path)?;
 
             Zeroizing::new(delete(
-                &path,
+                &true_path,
                 &key_from_bytes(&master_password, &salt)?,
                 service,
             )?);
