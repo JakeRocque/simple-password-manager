@@ -4,8 +4,10 @@ use std::path::PathBuf;
 
 use crate::{
     core::operations::{
-        add, delete, get, get_custom_path_dir_to_path, get_salt, get_vault_path, is_vault_init, list,
-    }, error::{Error, Result},
+        add, delete, get, get_custom_path_dir_to_path, get_salt, get_vault_path, is_vault_init,
+        list,
+    },
+    error::{Error, Result},
 };
 use argon2::password_hash::generate_salt;
 use clap::{Parser, Subcommand};
@@ -31,8 +33,7 @@ enum Commands {
         path: PathBuf,
     },
     /// Get the default vault file location
-    DefaultLocation {
-    },
+    DefaultLocation {},
     /// Initialize the empty vault
     InitVault {
         /// Vault password
@@ -99,10 +100,12 @@ fn eval() -> Result<Zeroizing<String>> {
             true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
             false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
-        Commands::DefaultLocation {   
-        } => {
-            Ok(Zeroizing::new(get_vault_path().to_str().ok_or(Error::DefaultVaultLocationNotFound)?.to_string()))
-        }
+        Commands::DefaultLocation {} => Ok(Zeroizing::new(
+            get_vault_path()
+                .to_str()
+                .ok_or(Error::DefaultVaultLocationNotFound)?
+                .to_string(),
+        )),
         Commands::InitVault {
             path,
             master_password,
@@ -149,7 +152,12 @@ fn eval() -> Result<Zeroizing<String>> {
             let salt = get_salt(&true_path)?;
 
             let result = Zeroizing::new(
-                get(&true_path, &key_from_bytes(&master_password, &salt)?, service)?.to_cli_string(true),
+                get(
+                    &true_path,
+                    &key_from_bytes(&master_password, &salt)?,
+                    service,
+                )?
+                .to_cli_string(true),
             );
 
             Ok(result)

@@ -17,7 +17,7 @@ pub fn vault_path() -> Result<PathBuf> {
 /// TODO
 pub fn custom_path_dir_to_path(path: &Path) -> Result<PathBuf> {
     if !path.is_dir() {
-        return Err(Error::PathNotDir)
+        return Err(Error::PathNotDir);
     }
 
     Ok(path.join(FOLDER_NAME).join("vault.txt"))
