@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::{
     core::operations::{
-        add, delete, delete_vault, get, get_salt, get_vault_path, is_default_vault_init, list,
+        add, delete, delete_vault, get, get_salt, get_vault_path, is_vault_init, list,
     },
     error::{Error, Result},
 };
@@ -26,8 +26,11 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Check if default vault has been initialized
-    Health {},
+    /// Check if vault has been initialized
+    Health {
+        #[arg(short, long, default_value_os_t = get_vault_path())]
+        path: PathBuf,
+    },
     /// Initialize the empty vault
     InitVault {
         /// Vault password
@@ -96,7 +99,7 @@ fn eval() -> Result<Zeroizing<String>> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Health {} => match is_default_vault_init() {
+        Commands::Health { path } => match is_vault_init(&path) {
             true => return Ok(Zeroizing::new("Default vault initialized.".to_string())),
             false => return Ok(Zeroizing::new("Default vault not initialized.".to_string())),
         },

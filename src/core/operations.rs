@@ -20,8 +20,8 @@ pub fn get_vault_path() -> PathBuf {
 }
 
 /// TODO
-pub fn is_default_vault_init() -> bool {
-    get_vault_path().exists()
+pub fn is_vault_init(vault_path: &Path) -> bool {
+    vault_path.exists()
 }
 
 fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zeroizing<[u8; 32]>> {
@@ -193,7 +193,7 @@ mod tests {
     use super::*;
     use crate::{
         core::{crypto::decrypt_entries, storage::read_vault_file},
-        model::VAULT_MAGIC,
+        model::{FOLDER_NAME, VAULT_MAGIC},
     };
 
     use aes_gcm::{
@@ -214,6 +214,33 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
 
         dir.join("test.txt")
+    }
+
+    #[test]
+    fn test_get_vault_path() {
+        let path = dirs::data_local_dir()
+            .unwrap()
+            .join(FOLDER_NAME)
+            .join("vault")
+            .with_extension("txt");
+
+        assert_eq!(get_vault_path(), path)
+    }
+
+    #[test]
+    fn test_is_default_vault_init() {
+        let path = create_relative_path("test_is_default_vault_init");
+
+        assert!(!is_vault_init(&path));
+
+        let key = Key::<Aes256Gcm>::generate();
+        let magic = VAULT_MAGIC;
+        let version = [0x00; 0x02];
+        let salt = generate_salt();
+
+        init_vault(&path, false, false, &key, magic, version, salt).unwrap();
+
+        assert!(is_vault_init(&path));
     }
 
     #[test]
@@ -320,8 +347,8 @@ mod tests {
     }
 
     #[test]
-    fn test_init_overwrite() {
-        let path = create_relative_path("test_init_overwrite");
+    fn test_init_vault_overwrite() {
+        let path = create_relative_path("test_init_vault_overwrite");
 
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
@@ -345,8 +372,8 @@ mod tests {
     }
 
     #[test]
-    fn test_init_no_overwrite() {
-        let path = create_relative_path("test_init_no_overwrite");
+    fn test_init_vault_no_overwrite() {
+        let path = create_relative_path("test_init_vault_no_overwrite");
 
         let key = Key::<Aes256Gcm>::generate();
         let magic = VAULT_MAGIC;
@@ -367,6 +394,23 @@ mod tests {
         assert_eq!(vault.header().magic(), &magic);
         assert_eq!(vault.header().version(), &version);
         assert_eq!(entries, expected_entries.into());
+    }
+
+    #[test]
+    fn test_delete_vault() {
+        let path = create_relative_path("test_delete_vault");
+
+        let key = Key::<Aes256Gcm>::generate();
+        let magic = VAULT_MAGIC;
+        let version = [0x00; 0x02];
+        let salt = generate_salt();
+
+        init_vault(&path, true, false, &key, magic, version, salt).unwrap();
+        delete_vault(&path.parent().unwrap()).unwrap();
+
+        let err = read_vault_file(&path).unwrap_err();
+
+        assert!(matches!(err, Error::StdIo(_)))
     }
 
     #[test]
