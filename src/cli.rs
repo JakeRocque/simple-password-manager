@@ -96,7 +96,7 @@ fn eval() -> Result<Zeroizing<String>> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Health { path } => match is_vault_init(&path) {
+        Commands::Health { path } => match is_vault_init(&get_custom_path_dir_to_path(&path)) {
             true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
             false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
