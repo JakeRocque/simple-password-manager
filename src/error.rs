@@ -20,9 +20,12 @@ pub enum Error {
     #[error("file system: default vault location not found")]
     DefaultVaultLocationNotFound,
 
+    #[error("vault file: file is not a vault file")]
+    VaultFileNotAVaultFile,
+
     #[error("vault header: inavlid vault header")]
     VaultHeaderInvalid,
-    #[error("failed to deserialize vault header")]
+    #[error("vault header: failed to deserialize vault header")]
     VaultHeaderDeserializationFailed,
 
     #[error("bad entry: inavlid service name")]

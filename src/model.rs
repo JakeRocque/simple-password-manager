@@ -246,7 +246,12 @@ impl ServiceList {
             "{}\n{}\n{}",
             "Services",
             "-".repeat("Services".len()),
-            self.services.join("\n")
+            self.services
+            .iter()
+            .filter(|s| !s.is_empty())  // remove the default entry
+            .cloned()
+            .collect::<Vec<String>>()
+            .join("\n")
         )
     }
 

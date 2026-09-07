@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::{
     core::operations::{
-        add, delete, get, get_custom_path_dir_to_path, get_salt, get_vault_path, is_vault_init,
+        add, delete, get, get_path_dir_to_vault_path, get_salt, get_vault_path_dir, is_vault_init,
         list,
     },
     error::{Error, Result},
@@ -29,7 +29,7 @@ struct Cli {
 enum Commands {
     /// Check if vault has been initialized and default vault location
     Health {
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
     /// Get the default vault file location
@@ -41,7 +41,7 @@ enum Commands {
         /// Vault version
         version: u16,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
     /// List saved services
@@ -49,7 +49,7 @@ enum Commands {
         /// Vault password
         master_password: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
     /// Get an entry (service, username, password)
@@ -59,7 +59,7 @@ enum Commands {
         /// Service to add
         service: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
     /// Add an entry
@@ -73,7 +73,7 @@ enum Commands {
         /// password of new service
         password: Zeroizing<String>,
         /// Location of the vault
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
 
@@ -83,7 +83,7 @@ enum Commands {
         master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
-        #[arg(short, long, default_value_os_t = get_vault_path())]
+        #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
 }
@@ -96,12 +96,12 @@ fn eval() -> Result<Zeroizing<String>> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Health { path } => match is_vault_init(&get_custom_path_dir_to_path(&path)) {
+        Commands::Health { path } => match is_vault_init(&get_path_dir_to_vault_path(&path)) {
             true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
             false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
         Commands::DefaultLocation {} => Ok(Zeroizing::new(
-            get_vault_path()
+            get_path_dir_to_vault_path(&get_vault_path_dir())
                 .to_str()
                 .ok_or(Error::DefaultVaultLocationNotFound)?
                 .to_string(),
@@ -114,7 +114,7 @@ fn eval() -> Result<Zeroizing<String>> {
             let salt = generate_salt();
 
             init_vault(
-                &get_custom_path_dir_to_path(&path),
+                &get_path_dir_to_vault_path(&path),
                 false,
                 true,
                 &key_from_bytes(&master_password, &salt)?,
@@ -132,7 +132,7 @@ fn eval() -> Result<Zeroizing<String>> {
             path,
             master_password,
         } => {
-            let true_path = get_custom_path_dir_to_path(&path);
+            let true_path = get_path_dir_to_vault_path(&path);
 
             let salt = get_salt(&true_path)?;
 
@@ -147,7 +147,7 @@ fn eval() -> Result<Zeroizing<String>> {
             master_password,
             service,
         } => {
-            let true_path = get_custom_path_dir_to_path(&path);
+            let true_path = get_path_dir_to_vault_path(&path);
 
             let salt = get_salt(&true_path)?;
 
@@ -169,7 +169,7 @@ fn eval() -> Result<Zeroizing<String>> {
             username,
             password,
         } => {
-            let true_path = get_custom_path_dir_to_path(&path);
+            let true_path = get_path_dir_to_vault_path(&path);
 
             let salt = get_salt(&true_path)?;
 
@@ -188,7 +188,7 @@ fn eval() -> Result<Zeroizing<String>> {
             master_password,
             service,
         } => {
-            let true_path = get_custom_path_dir_to_path(&path);
+            let true_path = get_path_dir_to_vault_path(&path);
 
             let salt = get_salt(&true_path)?;
 

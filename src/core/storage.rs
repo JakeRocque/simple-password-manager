@@ -5,17 +5,17 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
-use crate::model::{FOLDER_NAME, VAULT_HEADER_LEN, Vault, VaultHeader};
+use crate::model::{FOLDER_NAME, VAULT_HEADER_LEN, VAULT_MAGIC, Vault, VaultHeader};
 
 /// TODO
-pub fn vault_path() -> Result<PathBuf> {
+pub fn vault_path_dir() -> Result<PathBuf> {
     let data_dir = dirs::data_local_dir().ok_or(Error::DataLocalDirNotFound)?;
 
-    Ok(data_dir.join(FOLDER_NAME).join("vault.txt"))
+    Ok(data_dir)
 }
 
 /// TODO
-pub fn custom_path_dir_to_path(path: &Path) -> Result<PathBuf> {
+pub fn path_dir_to_vault_path(path: &Path) -> Result<PathBuf> {
     if !path.is_dir() {
         return Err(Error::PathNotDir);
     }
@@ -36,12 +36,13 @@ fn write_file(path: &Path, data: &[u8], overwrite: bool, parent_dirs: bool) -> R
         create_dir_all(path)?;
     }
 
+    let tmp = path.with_extension("tmp");
     let mut file = if overwrite {
         OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(path)
+            .open(&tmp)
             .map_err(Error::StdIo)?
     } else {
         OpenOptions::new()
@@ -52,6 +53,12 @@ fn write_file(path: &Path, data: &[u8], overwrite: bool, parent_dirs: bool) -> R
     };
 
     file.write_all(data).map_err(Error::StdIo)?;
+    file.sync_all().map_err(Error::StdIo)?;
+
+    if overwrite {
+        drop(file);
+        std::fs::rename(&tmp, path).map_err(Error::StdIo)?;
+    }
 
     Ok(())
 }
@@ -88,6 +95,11 @@ pub fn read_vault_file(path: &Path) -> Result<Vault> {
             .try_into()
             .or(Err(Error::VaultHeaderDeserializationFailed))?,
     );
+
+    if header.magic() != &VAULT_MAGIC {
+        return Err(Error::VaultFileNotAVaultFile)
+    }
+
     let sealed =
         serde_json::from_slice(&serialized_vault[VAULT_HEADER_LEN..]).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
 
@@ -106,7 +118,7 @@ mod tests {
 
     use crate::{
         core::crypto::encrypt_entries,
-        error::Error::{SerdeJson, StdIo},
+        error::Error::StdIo,
         model::{Entries, Entry, VAULT_MAGIC, VaultHeader},
     };
 
@@ -133,18 +145,15 @@ mod tests {
     }
 
     #[test]
-    fn test_vault_path_ok() {
+    fn test_vault_path_dir_ok() {
         let path = dirs::data_local_dir()
-            .unwrap()
-            .join(FOLDER_NAME)
-            .join("vault")
-            .with_extension("txt");
+            .unwrap();
 
-        assert_eq!(vault_path().unwrap(), path)
+        assert_eq!(vault_path_dir().unwrap(), path)
     }
 
     #[test]
-    fn test_custom_path_to_dir() {
+    fn test_path_dir_to_vault_path() {
         let custom_dir = create_relative_path("test_custom_path_to_dir")
             .parent()
             .unwrap()
@@ -155,7 +164,7 @@ mod tests {
             .join("vault")
             .with_extension("txt");
 
-        assert_eq!(custom_path_dir_to_path(&custom_dir).unwrap(), path);
+        assert_eq!(path_dir_to_vault_path(&custom_dir).unwrap(), path);
     }
 
     #[test]
@@ -261,7 +270,7 @@ mod tests {
 
         let err = read_vault_file(&path).unwrap_err();
 
-        assert!(matches!(err, SerdeJson(_)));
+        assert!(matches!(err, Error::VaultFileNotAVaultFile));
     }
 
     #[test]

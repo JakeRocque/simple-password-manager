@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{
     core::{
         crypto::{decrypt_entries, encrypt_entries},
-        storage::{custom_path_dir_to_path, read_vault_file, vault_path, write_vault_file},
+        storage::{path_dir_to_vault_path, read_vault_file, vault_path_dir, write_vault_file},
     },
     error::{Error, Result},
     model::{DEFAULT_VAULT_ENTRY, Entries, Entry, ServiceList, Vault, VaultHeader},
@@ -15,13 +15,13 @@ use argon2::Argon2;
 use zeroize::Zeroizing;
 
 /// TODO
-pub fn get_vault_path() -> PathBuf {
-    vault_path().expect("Default path failure, use manual path")
+pub fn get_vault_path_dir() -> PathBuf {
+    vault_path_dir().expect("Default path failure, use manual path")
 }
 
 /// TODO
-pub fn get_custom_path_dir_to_path(path: &Path) -> PathBuf {
-    custom_path_dir_to_path(path).expect("Default path failure, use manual path")
+pub fn get_path_dir_to_vault_path(path: &Path) -> PathBuf {
+    path_dir_to_vault_path(path).expect("Default path failure, use manual path")
 }
 
 /// TODO
@@ -101,6 +101,10 @@ pub fn list(vault_path: &Path, key: &Key<Aes256Gcm>) -> Result<Zeroizing<Service
 
 fn empty_string_error(s: &str, e: Error) -> Result<()> {
     if s.is_empty() { Err(e) } else { Ok(()) }
+}
+
+fn read_vault_file_handled(vault_path: &Path) -> Result<Vault> {
+    todo!()
 }
 
 /// TODO
@@ -217,18 +221,15 @@ mod tests {
     }
 
     #[test]
-    fn test_get_vault_path() {
+    fn test_get_vault_path_dir() {
         let path = dirs::data_local_dir()
-            .unwrap()
-            .join(FOLDER_NAME)
-            .join("vault")
-            .with_extension("txt");
+            .unwrap();
 
-        assert_eq!(get_vault_path(), path)
+        assert_eq!(get_vault_path_dir(), path)
     }
 
     #[test]
-    fn test_get_scustom_path_to_dir() {
+    fn test_path_dir_to_vault_path() {
         let custom_dir = create_relative_path("test_custom_path_to_dir")
             .parent()
             .unwrap()
@@ -239,7 +240,7 @@ mod tests {
             .join("vault")
             .with_extension("txt");
 
-        assert_eq!(custom_path_dir_to_path(&custom_dir).unwrap(), path);
+        assert_eq!(path_dir_to_vault_path(&custom_dir).unwrap(), path);
     }
 
     #[test]

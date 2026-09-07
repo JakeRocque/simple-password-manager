@@ -32,7 +32,8 @@
 //
 
 // TODO:
-// cli
+// cli ensure works and tests
+// add better error handling in operations
 // rust docs + comments
 // main file level comment with explanations, details, crypto limits, sources, and process
 // readme either copying or very similar to main file level comment
