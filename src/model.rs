@@ -247,11 +247,11 @@ impl ServiceList {
             "Services",
             "-".repeat("Services".len()),
             self.services
-            .iter()
-            .filter(|s| !s.is_empty())  // remove the default entry
-            .cloned()
-            .collect::<Vec<String>>()
-            .join("\n")
+                .iter()
+                .filter(|s| !s.is_empty()) // remove the default entry
+                .cloned()
+                .collect::<Vec<String>>()
+                .join("\n")
         )
     }
 

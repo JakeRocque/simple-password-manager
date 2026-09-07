@@ -103,7 +103,7 @@ fn empty_string_error(s: &str, e: Error) -> Result<()> {
     if s.is_empty() { Err(e) } else { Ok(()) }
 }
 
-fn read_vault_file_handled(vault_path: &Path) -> Result<Vault> {
+fn read_vault_file_handled(_vault_path: &Path) -> Result<Vault> {
     todo!()
 }
 
@@ -222,8 +222,7 @@ mod tests {
 
     #[test]
     fn test_get_vault_path_dir() {
-        let path = dirs::data_local_dir()
-            .unwrap();
+        let path = dirs::data_local_dir().unwrap();
 
         assert_eq!(get_vault_path_dir(), path)
     }

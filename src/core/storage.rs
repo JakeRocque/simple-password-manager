@@ -97,7 +97,7 @@ pub fn read_vault_file(path: &Path) -> Result<Vault> {
     );
 
     if header.magic() != &VAULT_MAGIC {
-        return Err(Error::VaultFileNotAVaultFile)
+        return Err(Error::VaultFileNotAVaultFile);
     }
 
     let sealed =
@@ -146,8 +146,7 @@ mod tests {
 
     #[test]
     fn test_vault_path_dir_ok() {
-        let path = dirs::data_local_dir()
-            .unwrap();
+        let path = dirs::data_local_dir().unwrap();
 
         assert_eq!(vault_path_dir().unwrap(), path)
     }
