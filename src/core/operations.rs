@@ -103,10 +103,6 @@ fn empty_string_error(s: &str, e: Error) -> Result<()> {
     if s.is_empty() { Err(e) } else { Ok(()) }
 }
 
-fn read_vault_file_handled(_vault_path: &Path) -> Result<Vault> {
-    todo!()
-}
-
 /// TODO
 pub fn get(
     vault_path: &Path,
@@ -539,7 +535,7 @@ mod tests {
 
         assert_eq!(entry1, expected_entry1.into());
         assert_eq!(entry2, expected_entry2.into());
-        assert!(matches!(err1, Error::StdIo(_)));
+        assert!(matches!(err1, Error::VaultFileVaultDoesntExist));
         assert!(matches!(err2, Error::ServiceNotFound));
         assert!(matches!(err3, Error::InvalidServiceName));
     }
@@ -654,7 +650,7 @@ mod tests {
         assert_eq!(vault.header().version(), &version);
         assert_eq!(entries.entries().len(), expected_entries.entries().len());
         assert_eq!(entries, expected_entries.into());
-        assert!(matches!(err1, Error::StdIo(_)));
+        assert!(matches!(err1, Error::VaultFileVaultDoesntExist));
         assert!(matches!(err2, Error::InvalidServiceName));
         assert!(matches!(err3, Error::InvalidUsername));
         assert!(matches!(err4, Error::InvalidPassword));
@@ -733,7 +729,7 @@ mod tests {
         assert_eq!(entries2.entries().len(), expected_entries2.entries().len());
         assert_eq!(entries2, expected_entries2.into());
 
-        assert!(matches!(err1, Error::StdIo(_)));
+        assert!(matches!(err1, Error::VaultFileVaultDoesntExist));
         assert!(matches!(err2, Error::ServiceNotFound));
         assert!(matches!(err3, Error::InvalidServiceName));
         assert!(matches!(err4, Error::ServiceNotFound));

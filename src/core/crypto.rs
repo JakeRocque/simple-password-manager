@@ -53,7 +53,10 @@ pub fn decrypt_entries(
     sealed: &Sealed,
     header: &VaultHeader,
 ) -> Result<Zeroizing<Entries>> {
-    let entries_bytes = Zeroizing::new(decrypt(key, sealed, &header.to_bytes())?);
+    let entries_bytes = Zeroizing::new(
+        decrypt(key, sealed, &header.to_bytes())
+            .map_err(|_| Error::DecryptionOrAuthenticationFailed)?,
+    );
 
     let entries = serde_json::from_slice(&entries_bytes).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested? can/should zeroizing here be tested?
 
@@ -157,5 +160,68 @@ mod tests {
         let decrypted = decrypt_entries(&key, &sealed, &header).unwrap();
 
         assert_eq!(decrypted, entries.into());
+    }
+
+    #[test]
+    fn test_encrypt_entries_decrypt_entries_wrong_key() {
+        let key = Key::<Aes256Gcm>::generate();
+        let entries = Entries::new(vec![
+            Entry::new(
+                "gmail".to_string(),
+                "mikey123".to_string(),
+                "$dog29!".to_string(),
+            ),
+            Entry::new(
+                "outlook".to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
+        ]);
+        let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
+
+        let sealed = encrypt_entries(&key, &entries, &header).unwrap();
+        let wrong_key = Key::<Aes256Gcm>::generate();
+
+        let err = decrypt_entries(&wrong_key, &sealed, &header).unwrap_err();
+
+        assert!(matches!(err, Error::DecryptionOrAuthenticationFailed));
+    }
+
+    #[test]
+    fn test_encrypt_entries_decrypt_entries_corrupted_authentication() {
+        let key = Key::<Aes256Gcm>::generate();
+        let entries = Entries::new(vec![
+            Entry::new(
+                "gmail".to_string(),
+                "mikey123".to_string(),
+                "$dog29!".to_string(),
+            ),
+            Entry::new(
+                "outlook".to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
+        ]);
+        let salt = generate_salt();
+        let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], salt);
+
+        let sealed = encrypt_entries(&key, &entries, &header).unwrap();
+
+        let mut wrong_vault_magic = VAULT_MAGIC.clone();
+
+        wrong_vault_magic[0] = wrong_vault_magic[0] - 1;
+        let wrong_header1 = VaultHeader::new(wrong_vault_magic, [0x00, 0x02], salt);
+
+        let wrong_header2 = VaultHeader::new(VAULT_MAGIC, [0x00, 0x01], salt);
+
+        let wrong_header3 = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
+
+        let err1 = decrypt_entries(&key, &sealed, &wrong_header1).unwrap_err();
+        let err2 = decrypt_entries(&key, &sealed, &wrong_header2).unwrap_err();
+        let err3 = decrypt_entries(&key, &sealed, &wrong_header3).unwrap_err();
+
+        assert!(matches!(err1, Error::DecryptionOrAuthenticationFailed));
+        assert!(matches!(err2, Error::DecryptionOrAuthenticationFailed));
+        assert!(matches!(err3, Error::DecryptionOrAuthenticationFailed));
     }
 }

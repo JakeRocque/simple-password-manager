@@ -5,10 +5,21 @@ use core::fmt;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub const FOLDER_NAME: &str = "jakeys-password-vault";
+pub const FOLDER_NAME: &str = "JakeysPasswordVault";
 pub const VAULT_MAGIC: [u8; 4] = [0x3b, 0xd0, 0x07, 0xbd];
 pub const VAULT_HEADER_LEN: usize = 22;
 pub const DEFAULT_VAULT_ENTRY: (&str, &str, &str) = ("", "SALVE,", "PLVRIMVM");
+
+pub const BANNER: &str = r"
+       _       _              _       _____                                    _  __      __         _ _   
+      | |     | |            ( )     |  __ \                                  | | \ \    / /        | | |  
+      | | __ _| | _____ _   _|/ ___  | |__) |_ _ ___ _____      _____  _ __ __| |  \ \  / /_ _ _   _| | |_ 
+  _   | |/ _` | |/ / _ \ | | | / __| |  ___/ _` / __/ __\ \ /\ / / _ \| '__/ _` |   \ \/ / _` | | | | | __|
+ | |__| | (_| |   <  __/ |_| | \__ \ | |  | (_| \__ \__ \\ V  V / (_) | | | (_| |    \  / (_| | |_| | | |_ 
+  \____/ \__,_|_|\_\___|\__, | |___/ |_|   \__,_|___/___/ \_/\_/ \___/|_|  \__,_|     \/ \__,_|\__,_|_|\__|
+                         __/ |                                                                             
+                        |___/                                                                              
+";
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct VaultHeader {

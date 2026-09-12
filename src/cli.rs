@@ -1,6 +1,6 @@
 //! TODO
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     core::operations::{
@@ -8,6 +8,7 @@ use crate::{
         list,
     },
     error::{Error, Result},
+    model::BANNER,
 };
 use argon2::password_hash::generate_salt;
 use clap::{Parser, Subcommand};
@@ -36,8 +37,6 @@ enum Commands {
     DefaultLocation {},
     /// Initialize the empty vault
     InitVault {
-        /// Vault password
-        master_password: Zeroizing<String>,
         /// Vault version
         version: u16,
         /// Location of the vault
@@ -46,16 +45,12 @@ enum Commands {
     },
     /// List saved services
     List {
-        /// Vault password
-        master_password: Zeroizing<String>,
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
     },
     /// Get an entry (service, username, password)
     Get {
-        /// Vault password
-        master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
         /// Location of the vault
@@ -64,8 +59,6 @@ enum Commands {
     },
     /// Add an entry
     Add {
-        /// Vault password
-        master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
         /// username of new service
@@ -79,8 +72,6 @@ enum Commands {
 
     /// Delete an entry
     Delete {
-        /// Vault password
-        master_password: Zeroizing<String>,
         /// Service to add
         service: Zeroizing<String>,
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
@@ -90,6 +81,21 @@ enum Commands {
 
 fn display_error(e: Error) {
     eprintln!("ERROR --- {e}");
+}
+
+fn get_inputs(path: &Path, gen_salt: bool) -> Result<(PathBuf, [u8; 16], Zeroizing<String>)> {
+    let true_path = get_path_dir_to_vault_path(&path);
+
+    let salt = if gen_salt {
+        generate_salt()
+    } else {
+        get_salt(&true_path)?
+    };
+
+    let master_password =
+        Zeroizing::new(rpassword::prompt_password("Master password: ").map_err(Error::RPassword)?);
+
+    Ok((true_path, salt, master_password))
 }
 
 fn eval() -> Result<Zeroizing<String>> {
@@ -106,15 +112,11 @@ fn eval() -> Result<Zeroizing<String>> {
                 .ok_or(Error::DefaultVaultLocationNotFound)?
                 .to_string(),
         )),
-        Commands::InitVault {
-            path,
-            master_password,
-            version,
-        } => {
-            let salt = generate_salt();
+        Commands::InitVault { path, version } => {
+            let (true_path, salt, master_password) = get_inputs(&path, true)?;
 
             init_vault(
-                &get_path_dir_to_vault_path(&path),
+                &true_path,
                 false,
                 true,
                 &key_from_bytes(&master_password, &salt)?,
@@ -124,17 +126,13 @@ fn eval() -> Result<Zeroizing<String>> {
             )?;
 
             Ok(Zeroizing::new(format!(
-                "Successfully initialized vault at '{}'. Do not change this folder name.",
-                path.display()
+                "{}\nSuccessfully initialized vault at '{}'. Do not change this folder or vault name.",
+                BANNER,
+                true_path.display()
             )))
         }
-        Commands::List {
-            path,
-            master_password,
-        } => {
-            let true_path = get_path_dir_to_vault_path(&path);
-
-            let salt = get_salt(&true_path)?;
+        Commands::List { path } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false)?;
 
             let result = Zeroizing::new(
                 list(&true_path, &key_from_bytes(&master_password, &salt)?)?.to_cli_string(),
@@ -142,14 +140,8 @@ fn eval() -> Result<Zeroizing<String>> {
 
             Ok(result)
         }
-        Commands::Get {
-            path,
-            master_password,
-            service,
-        } => {
-            let true_path = get_path_dir_to_vault_path(&path);
-
-            let salt = get_salt(&true_path)?;
+        Commands::Get { path, service } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false)?;
 
             let result = Zeroizing::new(
                 get(
@@ -164,14 +156,11 @@ fn eval() -> Result<Zeroizing<String>> {
         }
         Commands::Add {
             path,
-            master_password,
             service,
             username,
             password,
         } => {
-            let true_path = get_path_dir_to_vault_path(&path);
-
-            let salt = get_salt(&true_path)?;
+            let (true_path, salt, master_password) = get_inputs(&path, false)?;
 
             add(
                 &true_path,
@@ -183,14 +172,8 @@ fn eval() -> Result<Zeroizing<String>> {
 
             Ok(Zeroizing::new("Successfully added entry.".to_string()))
         }
-        Commands::Delete {
-            path,
-            master_password,
-            service,
-        } => {
-            let true_path = get_path_dir_to_vault_path(&path);
-
-            let salt = get_salt(&true_path)?;
+        Commands::Delete { path, service } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false)?;
 
             Zeroizing::new(delete(
                 &true_path,
@@ -213,8 +196,8 @@ pub fn run() {
             std::process::exit(1);
         }
         Ok(s) => {
-            println!("{}", *s)
+            print!("{}", *s)
         }
     }
-    print!("\n\n");
+    print!("\n\n\n");
 }

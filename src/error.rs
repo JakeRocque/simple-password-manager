@@ -10,6 +10,8 @@ pub enum Error {
     SerdeJson(#[from] serde_json::Error),
     #[error("password: {0}")]
     Argon2(#[from] argon2::Error),
+    #[error("rpassword: {0}")]
+    RPassword(#[source] std::io::Error),
     #[error("IO: {0}")]
     StdIo(#[from] std::io::Error),
 
@@ -22,6 +24,10 @@ pub enum Error {
 
     #[error("vault file: file is not a vault file")]
     VaultFileNotAVaultFile,
+    #[error("vault file: vault file doesn't exist")]
+    VaultFileVaultDoesntExist,
+    #[error("vault file: vault file already exists")]
+    VaultFileVaultAlreadyExists,
 
     #[error("vault header: inavlid vault header")]
     VaultHeaderInvalid,
@@ -35,6 +41,8 @@ pub enum Error {
     #[error("bad entry: inavlid password")]
     InvalidPassword,
 
+    #[error("vault: decryption or authentication failed, wrong password or corrupted vault")]
+    DecryptionOrAuthenticationFailed,
     #[error("vault: service not found in the vault")]
     ServiceNotFound,
     #[error("vault: service already exists in the vault")]

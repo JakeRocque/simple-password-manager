@@ -70,6 +70,9 @@ pub fn write_vault_file(
     overwrite: bool,
     parent_dirs: bool,
 ) -> Result<()> {
+    if path.exists() && !overwrite {
+        return Err(Error::VaultFileVaultAlreadyExists);
+    }
     let mut serialized_vault = Vec::new();
 
     serialized_vault.extend_from_slice(&vault.header().to_bytes());
@@ -84,6 +87,10 @@ fn read_file(path: &Path) -> Result<Vec<u8>> {
 
 /// TODO
 pub fn read_vault_file(path: &Path) -> Result<Vault> {
+    if !path.exists() {
+        return Err(Error::VaultFileVaultDoesntExist);
+    }
+
     let serialized_vault = read_file(path)?;
 
     if serialized_vault.len() < VAULT_HEADER_LEN {
@@ -261,6 +268,15 @@ mod tests {
     }
 
     #[test]
+    fn test_read_vault_file_vault_file_doesnt_exist() {
+        let path = create_relative_path("test_read_vault_file_vault_file_doesnt_exist");
+
+        let err = read_vault_file(&path).unwrap_err();
+
+        assert!(matches!(err, Error::VaultFileVaultDoesntExist));
+    }
+
+    #[test]
     fn test_read_vault_file_non_vault_file() {
         let path = create_relative_path("test_read_file_non_vault_file");
         let data = b"Welcome to the information age.";
@@ -312,5 +328,35 @@ mod tests {
         let result = read_vault_file(&path).unwrap();
 
         assert_eq!(result, vault);
+    }
+
+    #[test]
+    fn test_write_vault_file_vault_file_already_exists() {
+        let path = create_relative_path("test_write_vault_file_vault_file_already_exists");
+
+        let key = Key::<Aes256Gcm>::generate();
+        let entries = Entries::new(vec![
+            Entry::new(
+                "gmail".to_string(),
+                "mikey123".to_string(),
+                "$dog29!".to_string(),
+            ),
+            Entry::new(
+                "outlook".to_string(),
+                "jbhockeyfan@gmail.com".to_string(),
+                "rang3rsFanNY?".to_string(),
+            ),
+        ]);
+        let header = VaultHeader::new(VAULT_MAGIC, [0x00, 0x02], generate_salt());
+        let sealed = encrypt_entries(&key, &entries, &header).unwrap();
+        let vault = Vault::new(
+            VaultHeader::new(VAULT_MAGIC, [0x00, 0x03], generate_salt()),
+            sealed,
+        );
+
+        write_vault_file(&path, &vault, false, false).unwrap();
+        let err = write_vault_file(&path, &vault, false, false).unwrap_err();
+
+        assert!(matches!(err, Error::VaultFileVaultAlreadyExists));
     }
 }
