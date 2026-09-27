@@ -15,7 +15,10 @@ pub enum Error {
     #[error("IO: {0}")]
     StdIo(#[from] std::io::Error),
 
-    #[error("file system: path must be a directory, not a file")]
+    #[error("password: piped passwords disallowed")]
+    PasswordPipedPasswordDisallowed,
+
+    #[error("file system: path must be an existing directory")]
     PathNotDir,
     #[error("file system: default system local data directory not found")]
     DataLocalDirNotFound,
@@ -24,7 +27,9 @@ pub enum Error {
 
     #[error("vault file: file is not a vault file")]
     VaultFileNotAVaultFile,
-    #[error("vault file: vault file doesn't exist")]
+    #[error(
+        "vault file: vault file doesn't exist in vault directory or vault directory doesn't exist"
+    )]
     VaultFileVaultDoesntExist,
     #[error("vault file: vault file already exists")]
     VaultFileVaultAlreadyExists,

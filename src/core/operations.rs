@@ -20,8 +20,8 @@ pub fn get_vault_path_dir() -> PathBuf {
 }
 
 /// TODO
-pub fn get_path_dir_to_vault_path(path: &Path) -> PathBuf {
-    path_dir_to_vault_path(path).expect("Default path failure, use manual path")
+pub fn get_path_dir_to_vault_path(path: &Path) -> Result<PathBuf> {
+    path_dir_to_vault_path(path)
 }
 
 /// TODO
@@ -100,7 +100,7 @@ pub fn list(vault_path: &Path, key: &Key<Aes256Gcm>) -> Result<Zeroizing<Service
 }
 
 fn empty_string_error(s: &str, e: Error) -> Result<()> {
-    if s.is_empty() { Err(e) } else { Ok(()) }
+    if s.trim().is_empty() { Err(e) } else { Ok(()) }
 }
 
 /// TODO
@@ -423,6 +423,18 @@ mod tests {
         ));
         assert!(matches!(
             empty_string_error("", Error::InvalidPassword).unwrap_err(),
+            Error::InvalidPassword
+        ));
+        assert!(matches!(
+            empty_string_error(" ", Error::InvalidServiceName).unwrap_err(),
+            Error::InvalidServiceName
+        ));
+        assert!(matches!(
+            empty_string_error("  ", Error::InvalidUsername).unwrap_err(),
+            Error::InvalidUsername
+        ));
+        assert!(matches!(
+            empty_string_error("   ", Error::InvalidPassword).unwrap_err(),
             Error::InvalidPassword
         ));
     }

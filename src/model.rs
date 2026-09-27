@@ -166,7 +166,7 @@ impl Entry {
         format!(
             "{}\n{}\nUsername: {}\nPassword: {}",
             self.service,
-            "─".repeat(self.service.len()),
+            "-".repeat(self.service.len()),
             self.username,
             password,
         )

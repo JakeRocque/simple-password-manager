@@ -1,5 +1,6 @@
 //! TODO
 
+use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
 
 use crate::{
@@ -42,12 +43,18 @@ enum Commands {
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
+        /// Allows password to be piped in instead of using the interactive terminal
+        #[arg(short, long)]
+        allow_piped: bool,
     },
     /// List saved services
     List {
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
+        /// Allows password to be piped in instead of using the interactive terminal
+        #[arg(short, long)]
+        allow_piped: bool,
     },
     /// Get an entry (service, username, password)
     Get {
@@ -56,6 +63,9 @@ enum Commands {
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
+        /// Allows password to be piped in instead of using the interactive terminal
+        #[arg(short, long)]
+        allow_piped: bool,
     },
     /// Add an entry
     Add {
@@ -68,14 +78,21 @@ enum Commands {
         /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
+        /// Allows password to be piped in instead of using the interactive terminal
+        #[arg(short, long)]
+        allow_piped: bool,
     },
 
     /// Delete an entry
     Delete {
         /// Service to add
         service: Zeroizing<String>,
+        /// Location of the vault
         #[arg(short, long, default_value_os_t = get_vault_path_dir())]
         path: PathBuf,
+        /// Allows password to be piped in instead of using the interactive terminal
+        #[arg(short, long)]
+        allow_piped: bool,
     },
 }
 
@@ -83,8 +100,31 @@ fn display_error(e: Error) {
     eprintln!("ERROR --- {e}");
 }
 
-fn get_inputs(path: &Path, gen_salt: bool) -> Result<(PathBuf, [u8; 16], Zeroizing<String>)> {
-    let true_path = get_path_dir_to_vault_path(&path);
+fn read_master_password(allow_piped_password: bool) -> Result<Zeroizing<String>> {
+    let stdin = io::stdin();
+
+    if stdin.is_terminal() {
+        Ok(Zeroizing::new(
+            rpassword::prompt_password("Master password: ").map_err(Error::RPassword)?,
+        ))
+    } else if allow_piped_password {
+        let mut input = String::new();
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(Error::StdIo)?;
+
+        Ok(Zeroizing::new(input.to_string()))
+    } else {
+        Err(Error::PasswordPipedPasswordDisallowed)
+    }
+}
+
+fn get_inputs(
+    path: &Path,
+    gen_salt: bool,
+    allow_piped_password: bool,
+) -> Result<(PathBuf, [u8; 16], Zeroizing<String>)> {
+    let true_path = get_path_dir_to_vault_path(&path)?;
 
     let salt = if gen_salt {
         generate_salt()
@@ -92,8 +132,7 @@ fn get_inputs(path: &Path, gen_salt: bool) -> Result<(PathBuf, [u8; 16], Zeroizi
         get_salt(&true_path)?
     };
 
-    let master_password =
-        Zeroizing::new(rpassword::prompt_password("Master password: ").map_err(Error::RPassword)?);
+    let master_password = read_master_password(allow_piped_password)?;
 
     Ok((true_path, salt, master_password))
 }
@@ -102,18 +141,22 @@ fn eval() -> Result<Zeroizing<String>> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Health { path } => match is_vault_init(&get_path_dir_to_vault_path(&path)) {
+        Commands::Health { path } => match is_vault_init(&get_path_dir_to_vault_path(&path)?) {
             true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
             false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
         Commands::DefaultLocation {} => Ok(Zeroizing::new(
-            get_path_dir_to_vault_path(&get_vault_path_dir())
+            get_path_dir_to_vault_path(&get_vault_path_dir())?
                 .to_str()
                 .ok_or(Error::DefaultVaultLocationNotFound)?
                 .to_string(),
         )),
-        Commands::InitVault { path, version } => {
-            let (true_path, salt, master_password) = get_inputs(&path, true)?;
+        Commands::InitVault {
+            path,
+            version,
+            allow_piped,
+        } => {
+            let (true_path, salt, master_password) = get_inputs(&path, true, allow_piped)?;
 
             init_vault(
                 &true_path,
@@ -131,8 +174,8 @@ fn eval() -> Result<Zeroizing<String>> {
                 true_path.display()
             )))
         }
-        Commands::List { path } => {
-            let (true_path, salt, master_password) = get_inputs(&path, false)?;
+        Commands::List { path, allow_piped } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false, allow_piped)?;
 
             let result = Zeroizing::new(
                 list(&true_path, &key_from_bytes(&master_password, &salt)?)?.to_cli_string(),
@@ -140,8 +183,12 @@ fn eval() -> Result<Zeroizing<String>> {
 
             Ok(result)
         }
-        Commands::Get { path, service } => {
-            let (true_path, salt, master_password) = get_inputs(&path, false)?;
+        Commands::Get {
+            path,
+            service,
+            allow_piped,
+        } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false, allow_piped)?;
 
             let result = Zeroizing::new(
                 get(
@@ -159,8 +206,9 @@ fn eval() -> Result<Zeroizing<String>> {
             service,
             username,
             password,
+            allow_piped,
         } => {
-            let (true_path, salt, master_password) = get_inputs(&path, false)?;
+            let (true_path, salt, master_password) = get_inputs(&path, false, allow_piped)?;
 
             add(
                 &true_path,
@@ -172,8 +220,12 @@ fn eval() -> Result<Zeroizing<String>> {
 
             Ok(Zeroizing::new("Successfully added entry.".to_string()))
         }
-        Commands::Delete { path, service } => {
-            let (true_path, salt, master_password) = get_inputs(&path, false)?;
+        Commands::Delete {
+            path,
+            service,
+            allow_piped,
+        } => {
+            let (true_path, salt, master_password) = get_inputs(&path, false, allow_piped)?;
 
             Zeroizing::new(delete(
                 &true_path,
