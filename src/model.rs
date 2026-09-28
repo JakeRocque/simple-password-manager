@@ -1,4 +1,7 @@
-//! TODO
+//! Core data models and constants
+//!
+//! This module defines the data structures and their implementations to manage
+//! a vault file and its components as well as constants.
 
 use core::fmt;
 
@@ -21,44 +24,62 @@ pub const BANNER: &str = r"
                         |___/                                                                              
 ";
 
+/// A vault header which contains all metadata about the vault.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct VaultHeader {
+    /// A 4-byte magic indicating that the file is a JakeysPassWordVault vault.
     magic: [u8; 4],
+    /// A 2-byte version identifier for this vault.
     version: [u8; 2],
+    /// A 16-byte, random, unique value used to hash this vault's master password.
     salt: [u8; 16],
 }
 
+/// Encrypted ciphertext and nonce used for that encryption.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct Sealed {
+    /// 12-byte nonce used for encryption.
     nonce: [u8; 12],
+    /// The encrypted ciphertext.
     ciphertext: Vec<u8>, //  AES-GCM ciphertext & authentication tag
 }
 
+/// A vault which contains a vault header and an encrypted blob.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop)]
 pub struct Vault {
+    /// Vault's [`VaultHeader`].
     header: VaultHeader,
+    /// Vault's [`Sealed`]
     sealed: Sealed,
 }
 
+/// A single entry in the password vault.
 #[derive(PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop, Zeroize)]
 pub struct Entry {
+    /// Service name in this entry.
     service: String,
+    /// Username in this entry.
     username: String,
+    /// Password in this entry.
     password: String,
 }
 
+/// A collection of password vault entries.
 #[derive(PartialEq, Eq, Serialize, Deserialize, ZeroizeOnDrop, Zeroize)]
 pub struct Entries {
+    /// Vector of entries in this [`Entries`]
     entries: Vec<Entry>,
 }
 
+/// A collection of password vault entry service names.
 #[derive(Serialize, PartialEq, Eq, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct ServiceList {
+    /// Vector of service names in this [`ServiceList`]
     services: Vec<String>,
 }
 
 impl VaultHeader {
-    /// TODO
+    /// Creates a vault header with the given magic, version, and salt.
     pub fn new(magic: [u8; 4], version: [u8; 2], salt: [u8; 16]) -> Self {
         Self {
             magic,
@@ -67,22 +88,27 @@ impl VaultHeader {
         }
     }
 
-    /// TODO
+    /// Get the magic bytes of this [`VaultHeader`]
     pub fn magic(&self) -> &[u8; 4] {
         &self.magic
     }
 
-    /// TODO
+    /// Get the version of this [`VaultHeader`]
     pub fn version(&self) -> &[u8; 2] {
         &self.version
     }
 
-    /// TODO
+    /// Get the salt of this [`VaultHeader`]
     pub fn salt(&self) -> &[u8; 16] {
         &self.salt
     }
 
-    /// TODO
+    /// Serializes this [`VaultHeader`] into a 22-byte representation.
+    ///
+    /// The layout is:
+    /// - bytes 0..4: magic
+    /// - bytes 4..6: version
+    /// - bytes 6..22: salt
     pub fn to_bytes(&self) -> [u8; VAULT_HEADER_LEN] {
         let mut out = [0u8; VAULT_HEADER_LEN];
 
@@ -93,7 +119,12 @@ impl VaultHeader {
         out
     }
 
-    /// TODO
+    /// Convert a 22-byte slice to a [`VaultHeader`]
+    ///
+    /// The expected layout is:
+    /// - bytes 0..4: magic
+    /// - bytes 4..6: version
+    /// - bytes 6..22: salt
     pub fn from_bytes(bytes: &[u8; VAULT_HEADER_LEN]) -> Self {
         let mut magic = [0u8; 4];
         let mut version = [0u8; 2];
@@ -112,41 +143,41 @@ impl VaultHeader {
 }
 
 impl Sealed {
-    /// TODO
+    /// Creates a ciphertext and nonce pair with the given nonce and ciphertext.
     pub fn new(nonce: [u8; 12], ciphertext: Vec<u8>) -> Self {
         Self { nonce, ciphertext }
     }
 
-    /// TODO
+    /// Get the nonce of this [`Sealed`]
     pub fn nonce(&self) -> &[u8; 12] {
         &self.nonce
     }
 
-    /// TODO
+    /// Get the ciphertext of this [`Sealed`]
     pub fn ciphertext(&self) -> &Vec<u8> {
         &self.ciphertext
     }
 }
 
 impl Vault {
-    /// TODO
+    /// Creates a vault with the given vault header and sealed blob.
     pub fn new(header: VaultHeader, sealed: Sealed) -> Self {
         Self { header, sealed }
     }
 
-    /// TODO
+    /// Get the [`VaultHeader`] of this [`Vault`]
     pub fn header(&self) -> &VaultHeader {
         &self.header
     }
 
-    /// TODO
+    /// Get the [`Sealed`] of this [`Vault`]
     pub fn sealed(&self) -> &Sealed {
         &self.sealed
     }
 }
 
 impl Entry {
-    /// TODO
+    /// Creates a password manager entry with the given service name, username, and password.
     pub fn new(service: String, username: String, password: String) -> Self {
         Self {
             service,
@@ -155,7 +186,7 @@ impl Entry {
         }
     }
 
-    /// TODO
+    /// Convert this [`Entry`] to a CLI friendly string.
     pub fn to_cli_string(&self, show_password: bool) -> String {
         let password = if show_password {
             &self.password.to_string()
@@ -172,17 +203,17 @@ impl Entry {
         )
     }
 
-    /// TODO
+    /// Get the service of this [`Entry`]
     pub fn service(&self) -> &str {
         &self.service
     }
 
-    /// TODO
+    /// Get the username of this [`Entry`]
     pub fn username(&self) -> &str {
         &self.username
     }
 
-    /// TODO
+    /// Get the password of this [`Entry`]
     pub fn password(&self) -> &str {
         &self.password
     }
@@ -197,18 +228,18 @@ impl fmt::Debug for Entry {
 }
 
 impl Entries {
-    /// TODO
+    /// Creates a collection of password manager entries with the given entries.
     pub fn new(entries: Vec<Entry>) -> Self {
         Self { entries }
     }
 
-    /// TODO
+    /// Get collection of entries of this [`Entries`]
     #[allow(dead_code)]
     pub fn entries(&self) -> &[Entry] {
         &self.entries
     }
 
-    /// TODO
+    /// Get the vector of service names from this [`Entries`]
     pub fn get_services(&self) -> Vec<String> {
         self.entries
             .iter()
@@ -216,17 +247,25 @@ impl Entries {
             .collect()
     }
 
-    /// TODO
+    /// Get [`Entry`] with the given service name if it exists in this [`Entries`].
+    ///
+    /// # Returns
+    ///
+    /// The [`Entry`] containing the given service, or [`None`] if none do.
     pub fn get_entry_by_service(&self, service: &str) -> Option<&Entry> {
         self.entries.iter().find(|entry| entry.service() == service)
     }
 
-    /// TODO
+    /// Add [`Entry`] to this [`Entries`] with the given service name, username, and password.
     pub fn add_entry(&mut self, service: String, username: String, password: String) {
         self.entries.push(Entry::new(service, username, password))
     }
 
-    /// TODO
+    /// Remove [`Entry`] with the given service name from this [`Entries`] if it exists.
+    ///
+    /// # Returns
+    ///
+    /// The removed [`Entry`] containing the given service, or [`None`] if none do.
     pub fn remove_entry_by_service(&mut self, service: &str) -> Option<Entry> {
         let idx = self
             .entries
@@ -246,12 +285,12 @@ impl fmt::Debug for Entries {
 }
 
 impl ServiceList {
-    /// TODO
+    /// Creates a collection of password manager entry service names with the given service names.
     pub fn new(services: Vec<String>) -> Self {
         Self { services }
     }
 
-    /// TODO
+    /// Convert this [`ServiceList`] to a CLI friendly string.
     pub fn to_cli_string(&self) -> String {
         format!(
             "{}\n{}\n{}",
@@ -266,7 +305,7 @@ impl ServiceList {
         )
     }
 
-    /// TODO
+    /// Get the vector of service names of this [`ServiceList`]
     #[allow(dead_code)]
     pub fn services(&self) -> &[String] {
         &self.services

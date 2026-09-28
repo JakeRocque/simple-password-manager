@@ -1,4 +1,7 @@
-//! TODO
+//! Custom error types for the password manager
+//!
+//! This module provides custom error types for consistent error handling
+//! and improved user interpretability.
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

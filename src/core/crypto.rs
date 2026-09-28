@@ -1,4 +1,10 @@
-//! TODO
+//! Cryptography for password manager data
+//!
+//! This module provides authenticated encryption and decryption for
+//! password manager entries using AES-256-GCM. All metadata for a password
+//! vault is contained within the vault header and is supplied as additional
+//! authenticated data (AAD), binding the encrypted entries to the entire
+//! authenticated vault.
 
 use crate::{
     error::{Error, Result},
@@ -21,14 +27,28 @@ fn encrypt(key: &Key<Aes256Gcm>, message: &[u8], aad: &[u8]) -> Result<Sealed> {
     Ok(Sealed::new(nonce.into(), ciphertext))
 }
 
-/// TODO
+/// Serializes and encrypts password vault entries using AES-256-GCM.
+///
+/// The [`Entries`] and [`VaultHeader`] are serialized before encryptiom.
+/// The entries are encrypted using the `key` and authenticated with the
+/// header as AAD.
+///
+/// The header is not encrypted but modifying it causes authentication, and
+/// decryption in turn, to fail. The header and encrypted entries together
+/// form the entire vault and thus the entire vault is authenticated.
+///
+/// # Errors
+///
+/// Returns [`Error::SerdeJson`] if serializing the entries fails.
+///
+/// Returns [`Error::AesGcm`] if AES-GCM encryption fails.
 pub fn encrypt_entries(
     key: &Key<Aes256Gcm>,
     entries: &Entries,
     header: &VaultHeader,
 ) -> Result<Sealed> {
     let entries_bytes: Zeroizing<Vec<u8>> =
-        Zeroizing::new(serde_json::to_vec(entries).map_err(Error::SerdeJson)?); // TODO - can/should this line be tested? can/should zeroizing here be tested?
+        Zeroizing::new(serde_json::to_vec(entries).map_err(Error::SerdeJson)?);
 
     encrypt(key, &entries_bytes, &header.to_bytes())
 }
@@ -47,7 +67,18 @@ fn decrypt(key: &Key<Aes256Gcm>, sealed: &Sealed, aad: &[u8]) -> Result<Vec<u8>>
     Ok(message)
 }
 
-/// TODO
+/// Decrypts and deserializes password vault entries using AES-256-GCM.
+///
+/// The serialized [`VaultHeader`] is used as AAD and so must
+/// be unchanged for decryption to succeed.
+///
+/// # Errors
+///
+/// Returns [`Error::DecryptionOrAuthenticationFailed`] if decryption or
+/// authentication fails, including when the key or vault header is incorrect.
+///
+/// Returns [`Error::SerdeJson`] if the decrypted data cannot be deserialized
+/// into [`Entries`].
 pub fn decrypt_entries(
     key: &Key<Aes256Gcm>,
     sealed: &Sealed,

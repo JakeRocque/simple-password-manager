@@ -1,4 +1,9 @@
-//! TODO
+//! File management for password manager data.
+//!
+//! This module contains the I/O reading and writing functionality for
+//! password manager data. Vault overwrites are performed using a
+//! temporary file followed by a rename to mitigate the risk of
+//! partial writes or data loss after a failure.
 
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -7,14 +12,25 @@ use std::path::{Path, PathBuf};
 use crate::error::{Error, Result};
 use crate::model::{FOLDER_NAME, VAULT_HEADER_LEN, VAULT_MAGIC, Vault, VaultHeader};
 
-/// TODO
+/// Returns the default directory to store the password manager data.
+///
+/// # Errors
+///
+/// Returns [`Error::DataLocalDirNotFound`] if the platform-specific local data directory
+/// cannot be found.
 pub fn vault_path_dir() -> Result<PathBuf> {
     let data_dir = dirs::data_local_dir().ok_or(Error::DataLocalDirNotFound)?;
 
     Ok(data_dir)
 }
 
-/// TODO
+/// Returns the path to the password manager vault file within the given directory.
+///
+/// Within the given directory, the vault is stored in [`FOLDER_NAME`] / `vault.txt`.
+///
+/// # Errors
+///
+/// Returns [`Error::PathNotDir`] if `path` is not a directory.
 pub fn path_dir_to_vault_path(path: &Path) -> Result<PathBuf> {
     if !path.is_dir() {
         return Err(Error::PathNotDir);
@@ -63,7 +79,23 @@ fn write_file(path: &Path, data: &[u8], overwrite: bool, parent_dirs: bool) -> R
     Ok(())
 }
 
-/// TODO
+/// Writes the given vault to the specified file.
+///
+/// The vault's header is written as its fixed-sized binary representation
+/// followed by its sealed entries serialized as JSON.
+///
+/// If `overwrite`, any existing vault file will be overwritten.
+/// If `parent_dirs`, any missing parent directories are created.
+///
+/// # Errors
+///
+/// Returns [`Error::VaultFileVaultAlreadyExists`] if the file already exists
+/// and `overwrite` is `false`.
+///
+/// Returns [`Error::SerdeJson`] if the serializing the sealed entries fails.
+///
+/// Returns [`Error::StdIo`] if the file cannot be created, written, synced,
+/// or renamed.
 pub fn write_vault_file(
     path: &Path,
     vault: &Vault,
@@ -76,7 +108,7 @@ pub fn write_vault_file(
     let mut serialized_vault = Vec::new();
 
     serialized_vault.extend_from_slice(&vault.header().to_bytes());
-    serde_json::to_writer(&mut serialized_vault, vault.sealed()).map_err(Error::SerdeJson)?; // TODO - can/should this line be tested?
+    serde_json::to_writer(&mut serialized_vault, vault.sealed()).map_err(Error::SerdeJson)?;
 
     write_file(path, &serialized_vault, overwrite, parent_dirs)
 }
@@ -85,7 +117,27 @@ fn read_file(path: &Path) -> Result<Vec<u8>> {
     std::fs::read(path).map_err(Error::StdIo)
 }
 
-/// TODO
+/// Reads a vault from the specified file.
+///
+/// The file must contain the serialized vault header followed by
+/// the sealed entries serialized as JSON.
+///
+/// # Errors
+///
+/// Returns [`Error::VaultFileVaultDoesntExist`] if the file does not exist.
+///
+/// Returns [`Error::VaultHeaderInvalid`] if the file is too small to contain
+/// a complete vault header.
+///
+/// Returns [`Error::VaultHeaderDeserializationFailed`] if vault header
+/// deserialization fails.
+///
+/// Returns [`Error::VaultFileNotAVaultFile`] if the vault magic is invalid.
+///
+/// Returns [`Error::SerdeJson`] if deserializing the encrypted entries
+/// fails.
+///
+/// Returns [`Error::StdIo`] if the file cannot be read.
 pub fn read_vault_file(path: &Path) -> Result<Vault> {
     if !path.exists() {
         return Err(Error::VaultFileVaultDoesntExist);

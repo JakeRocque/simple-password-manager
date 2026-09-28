@@ -1,4 +1,8 @@
-//! TODO
+//! Public password manager operations
+//!
+//! This module contains the public password manager operations
+//! needed by an interface to initialize, read from, and write to
+//! a password manager vault.
 
 use std::path::{Path, PathBuf};
 
@@ -14,17 +18,26 @@ use aes_gcm::{Aes256Gcm, Key};
 use argon2::Argon2;
 use zeroize::Zeroizing;
 
-/// TODO
+/// Returns the default directory to store the password manager data.
+///
+/// # Errors
+///
+/// Returns error message if the platform-specific local data directory
+/// unexpectedly cannot be found.
 pub fn get_vault_path_dir() -> PathBuf {
     vault_path_dir().expect("Default path failure, use manual path")
 }
 
-/// TODO
+/// Returns the path to the password manager vault file within the given directory.
+///
+/// # Errors
+///
+/// Returns [`Error::PathNotDir`] if `path` is not a directory.
 pub fn get_path_dir_to_vault_path(path: &Path) -> Result<PathBuf> {
     path_dir_to_vault_path(path)
 }
 
-/// TODO
+/// Has a vault been initialized at the specified location?
 pub fn is_vault_init(vault_path: &Path) -> bool {
     vault_path.exists()
 }
@@ -40,7 +53,13 @@ fn derive_key_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Zer
     Ok(Zeroizing::new(*key_bytes))
 }
 
-/// TODO
+/// Derives an AES-256-GCM key from a given password and 16-byte salt.
+///
+/// The caller should ensure the returned key is zeroized.
+///
+/// # Errors
+///
+/// Returns [`Error::Argon2`] if argon2 key derivation fails.
 pub fn key_from_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<Key<Aes256Gcm>> {
     let key_bytes = derive_key_bytes(password, salt)?;
 
@@ -48,7 +67,11 @@ pub fn key_from_bytes(password: &Zeroizing<String>, salt: &[u8; 16]) -> Result<K
     Ok(Key::<Aes256Gcm>::from(*key_bytes))
 }
 
-/// TODO
+/// Returns the 16-byte salt from a password vault at the specified location.
+///
+/// # Errors
+///
+/// Returns an error if reading the vault file fails.
 pub fn get_salt(vault_path: &Path) -> Result<[u8; 16]> {
     let vault = read_vault_file(vault_path)?;
 
@@ -76,7 +99,17 @@ fn create_empty_vault(
     Ok(Vault::new(header, sealed))
 }
 
-/// TODO
+/// Creates and writes an empty password vault to the specified file location.
+///
+/// The vault is initialized with the given AES-256-GCM key derived
+/// from a master password, magic value, version, and salt.
+///
+/// If `overwrite`, any existing vault file will be overwritten.
+/// If `parent_dirs`, any missing parent directories are created.
+///
+/// # Errors
+///
+/// Returns an error if the vault cannot be created or written to disk.
 pub fn init_vault(
     vault_path: &Path,
     overwrite: bool,
@@ -91,19 +124,38 @@ pub fn init_vault(
     write_vault_file(vault_path, &vault, overwrite, parent_dirs)
 }
 
-/// TODO
+/// Returns the services stored in the password vault at a specified file location.
+///
+/// The vault is read from `vault_path` and its entries are decrypted using
+/// `key`.
+///
+/// # Errors
+///
+/// Returns an error if the vault cannot be read or the entries cannot be
+/// decrypted.
 pub fn list(vault_path: &Path, key: &Key<Aes256Gcm>) -> Result<Zeroizing<ServiceList>> {
     let vault = read_vault_file(vault_path)?;
     let entries = decrypt_entries(key, vault.sealed(), vault.header())?;
 
-    Ok(Zeroizing::new(ServiceList::new(entries.get_services()))) // Does this get_services create a zeroization issue with its copying?
+    Ok(Zeroizing::new(ServiceList::new(entries.get_services())))
 }
 
 fn empty_string_error(s: &str, e: Error) -> Result<()> {
     if s.trim().is_empty() { Err(e) } else { Ok(()) }
 }
 
-/// TODO
+/// Returns the password entry for the specified service in the password vault
+/// at the specified file location.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidServiceName`] if `service` is empty or contains
+/// only whitespace.
+///
+/// Returns [`Error::ServiceNotFound`] if no entry exists for `service`.
+///
+/// Returns an error if the vault cannot be read or its entries cannot be
+/// decrypted.
 pub fn get(
     vault_path: &Path,
     key: &Key<Aes256Gcm>,
@@ -125,7 +177,27 @@ pub fn get(
     )))
 }
 
-/// TODO
+/// Adds a new password entry to the password vault at the specified location.
+///
+/// The entry is identified by its service name. The vault is read,
+/// decrypted, updated, and written back to `vault_path`.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidServiceName`] if `service` is empty or contains
+/// only whitespace.
+///
+/// Returns [`Error::InvalidUsername`] if `username` is empty or contains
+/// only whitespace.
+///
+/// Returns [`Error::InvalidPassword`] if `password` is empty or contains
+/// only whitespace.
+///
+/// Returns [`Error::ServiceAlreadyExists`] if an entry for `service` already
+/// exists.
+///
+/// Returns an error if the vault cannot be read, decrypted, encrypted, or
+/// written.
 pub fn add(
     vault_path: &Path,
     key: &Key<Aes256Gcm>,
@@ -162,7 +234,20 @@ pub fn add(
     Ok(())
 }
 
-/// TODO
+/// Deletes the password entry for the specified service from the password vault
+/// at the specified location.
+///
+/// The vault is read, decrypted, updated, and written back to `vault_path`.
+///
+/// # Errors
+///
+/// Returns [`Error::InvalidServiceName`] if `service` is empty or contains
+/// only whitespace.
+///
+/// Returns [`Error::ServiceNotFound`] if no entry exists for `service`.
+///
+/// Returns an error if the vault cannot be read, decrypted, encrypted, or
+/// written.
 pub fn delete(vault_path: &Path, key: &Key<Aes256Gcm>, service: Zeroizing<String>) -> Result<()> {
     empty_string_error(&service, Error::InvalidServiceName)?;
 

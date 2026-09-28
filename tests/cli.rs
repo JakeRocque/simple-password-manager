@@ -1,3 +1,5 @@
+//! Command-line interface (CLI) Integration test
+//!
 //! This file has some integration tests for the actual program binary.
 //! Passwords are piped in instead of using an interactive terminal.
 

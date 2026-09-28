@@ -1,4 +1,7 @@
-//! TODO
+//! Command-line interface (CLI) for the password manager
+//!
+//! This module provides the CLI commands needed to intitialize,
+//! read from, and write to a password vault.
 
 use std::io::{self, IsTerminal};
 use std::path::{Path, PathBuf};
@@ -238,6 +241,7 @@ fn eval() -> Result<Zeroizing<String>> {
     }
 }
 
+/// Evaluate and display the results of the entered CLI command.
 pub fn run() {
     let response = eval();
 
