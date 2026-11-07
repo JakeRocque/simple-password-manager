@@ -124,10 +124,6 @@
 //! Testing:
 //! - <https://www.reddit.com/r/rust/comments/yfharn/write_tests_around_the_file_system/>
 
-// TODO:
-// readme either copying or very similar to main file level comment
-// usable binary
-
 mod cli;
 mod core;
 mod error;
