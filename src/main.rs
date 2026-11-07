@@ -21,7 +21,7 @@
 //! **Key derivation (Argon2id).** The master password is hashed with Argon2
 //!   together with a random 16-byte salt to produce a 32-byte key. The salt is
 //!   generated once when the vault is created and stored, unencrypted, in the
-//!   vault header. Salts are not secret. their job is to make every vault's key
+//!   vault header. Salts are not secret. Their job is to make every vault's key
 //!   unique even if two users pick the same password. This defeats
 //!   precomputed (rainbow table) attacks. Argon2 ensures that any guess at the
 //!   master password is expensive for an attacker.
@@ -35,13 +35,13 @@
 //! - *Authentication*: If the ciphertext is tampered with at all
 //!   then decryption fails.
 //!
-//! **Nonces** Every encryption uses a fresh, random 12-byte (96-bit) nonce,
+//! **Nonces.** Every encryption uses a fresh, random 12-byte (96-bit) nonce,
 //!   stored next to the ciphertext. A nonce must never be reused.
 //!
 //! **Additional Authenticated Data (AAD).** The 22-byte vault header is
 //!   passed to AES-GCM as AAD. It is stored in plaintext (it has to be, since
 //!   the salt is needed to derive the key), but it is covered by the
-//!   authentication tag. Between the AAD and actual encyrpted data,
+//!   authentication tag. Between the AAD and actual encrypted data,
 //!   every single piece of data written to disk is authenticated.
 //!
 //! # Vault file format
