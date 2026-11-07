@@ -496,7 +496,7 @@ mod tests {
             ]
         );
 
-        entries.remove_entry_by_service(&"github");
+        entries.remove_entry_by_service("github");
         assert_eq!(
             entries.entries(),
             vec![
@@ -513,7 +513,7 @@ mod tests {
             ]
         );
 
-        let none = entries.remove_entry_by_service(&"fortnite");
+        let none = entries.remove_entry_by_service("fortnite");
         assert_eq!(none, None);
         assert_eq!(
             entries.entries(),
@@ -531,7 +531,7 @@ mod tests {
             ]
         );
 
-        entries.remove_entry_by_service(&"chase");
+        entries.remove_entry_by_service("chase");
         assert_eq!(
             entries.entries(),
             vec![Entry::new(

@@ -29,7 +29,7 @@ fn create_relative_path_string(test_name: &str) -> String {
 
     fs::create_dir_all(&dir).unwrap();
 
-    return dir.to_str().unwrap().to_string();
+    dir.to_str().unwrap().to_string()
 }
 
 #[test]
@@ -101,7 +101,7 @@ fn test_init_vault() {
         .write_stdin("password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault file: vault file already exists\n",));
+        .stderr("ERROR --- vault file: vault file already exists\n".to_string());
 }
 
 #[test]
@@ -117,8 +117,7 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault file: vault file doesn't exist in vault directory or vault directory doesn't exist\n",
-            ));
+        .stderr("ERROR --- vault file: vault file doesn't exist in vault directory or vault directory doesn't exist\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("init-vault")
@@ -139,7 +138,7 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nServices\n--------\n\n\n\n"));
+        .stdout("\n\nServices\n--------\n\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd
@@ -150,8 +149,7 @@ fn test_list_get_add_delete() {
         .write_stdin("wrong_password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault: decryption or authentication failed, wrong password or corrupted vault\n",
-            ));
+        .stderr("ERROR --- vault: decryption or authentication failed, wrong password or corrupted vault\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("add")
@@ -165,7 +163,7 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nSuccessfully added entry.\n\n\n"));
+        .stdout("\n\nSuccessfully added entry.\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("list")
@@ -176,7 +174,7 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nServices\n--------\nMinecraft\n\n\n"));
+        .stdout("\n\nServices\n--------\nMinecraft\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("add")
@@ -190,7 +188,7 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nSuccessfully added entry.\n\n\n"));
+        .stdout("\n\nSuccessfully added entry.\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("list")
@@ -201,7 +199,7 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nServices\n--------\nMinecraft\netsy\n\n\n"));
+        .stdout("\n\nServices\n--------\nMinecraft\netsy\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd
@@ -212,8 +210,7 @@ fn test_list_get_add_delete() {
         .write_stdin("wrong_password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault: decryption or authentication failed, wrong password or corrupted vault\n",
-            ));
+        .stderr("ERROR --- vault: decryption or authentication failed, wrong password or corrupted vault\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("get")
@@ -224,9 +221,9 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(0)
-        .stdout(format!(
-            "\n\netsy\n----\nUsername: Brig1988\nPassword: ?aS02Ks8FoW!sk8E8Es2$\n\n\n"
-        ));
+        .stdout(
+            "\n\netsy\n----\nUsername: Brig1988\nPassword: ?aS02Ks8FoW!sk8E8Es2$\n\n\n".to_string(),
+        );
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("get")
@@ -237,7 +234,7 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault: service not found in the vault\n"));
+        .stderr("ERROR --- vault: service not found in the vault\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("get")
@@ -248,7 +245,7 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- bad entry: inavlid service name\n"));
+        .stderr("ERROR --- bad entry: inavlid service name\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("delete")
@@ -259,7 +256,7 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(0)
-        .stdout(format!("\n\nSuccessfully deleted entry.\n\n\n"));
+        .stdout("\n\nSuccessfully deleted entry.\n\n\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("delete")
@@ -270,7 +267,7 @@ fn test_list_get_add_delete() {
         .write_stdin("password\n")
         .assert()
         .code(1)
-        .stderr(format!("ERROR --- vault: service not found in the vault\n"));
+        .stderr("ERROR --- vault: service not found in the vault\n".to_string());
 
     let mut cmd = Command::cargo_bin("jakeys_password_manager_bin").unwrap();
     cmd.arg("list")
@@ -281,5 +278,5 @@ fn test_list_get_add_delete() {
         .assert()
         .code(0)
         .code(0)
-        .stdout(format!("\n\nServices\n--------\netsy\n\n\n"));
+        .stdout("\n\nServices\n--------\netsy\n\n\n".to_string());
 }

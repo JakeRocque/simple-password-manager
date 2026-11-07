@@ -238,9 +238,9 @@ mod tests {
 
         let sealed = encrypt_entries(&key, &entries, &header).unwrap();
 
-        let mut wrong_vault_magic = VAULT_MAGIC.clone();
+        let mut wrong_vault_magic = VAULT_MAGIC;
 
-        wrong_vault_magic[0] = wrong_vault_magic[0] - 1;
+        wrong_vault_magic[0] -= 1;
         let wrong_header1 = VaultHeader::new(wrong_vault_magic, [0x00, 0x02], salt);
 
         let wrong_header2 = VaultHeader::new(VAULT_MAGIC, [0x00, 0x01], salt);

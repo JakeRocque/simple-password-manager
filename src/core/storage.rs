@@ -239,7 +239,7 @@ mod tests {
         let path = create_relative_path("test_write_file_read_file_roundtrip");
         let data = b"Welcome to the information age.";
 
-        write_file(&path, &data.to_vec(), false, false).unwrap();
+        write_file(&path, data.as_ref(), false, false).unwrap();
         let result = read_file(&path).unwrap();
 
         assert_eq!(result, data);
@@ -250,7 +250,7 @@ mod tests {
         let path = create_relative_path("test_write_file_read_file_roundtrip_empty");
         let data = b"";
 
-        write_file(&path, &data.to_vec(), false, false).unwrap();
+        write_file(&path, data.as_ref(), false, false).unwrap();
         let result = read_file(&path).unwrap();
 
         assert_eq!(result, data);
@@ -262,9 +262,9 @@ mod tests {
         let data1 = b"Welcome to the information age.";
         let data2 = b"This should not overwrite the message.";
 
-        write_file(&path, &data1.to_vec(), false, false).unwrap();
+        write_file(&path, data1.as_ref(), false, false).unwrap();
 
-        let err = write_file(&path, &data2.to_vec(), false, false).unwrap_err();
+        let err = write_file(&path, data2.as_ref(), false, false).unwrap_err();
         let result = read_file(&path).unwrap();
 
         assert!(matches!(err, StdIo(_)));
@@ -277,8 +277,8 @@ mod tests {
         let data1 = b"Welcome to the information age.";
         let data2 = b"This should overwrite the message.";
 
-        write_file(&path, &data1.to_vec(), false, false).unwrap();
-        write_file(&path, &data2.to_vec(), true, false).unwrap();
+        write_file(&path, data1.as_ref(), false, false).unwrap();
+        write_file(&path, data2.as_ref(), true, false).unwrap();
 
         let result = read_file(&path).unwrap();
 
@@ -290,7 +290,7 @@ mod tests {
         let path = create_relative_path("test_write_file_path_doesnt_already_exist_overwrite");
         let data = b"Welcome to the information age.";
 
-        write_file(&path, &data.to_vec(), true, false).unwrap();
+        write_file(&path, data.as_ref(), true, false).unwrap();
 
         let result = read_file(&path).unwrap();
 
@@ -302,7 +302,7 @@ mod tests {
         let path = create_relative_path_no_parent("test_write_file_create_parent_dir_fail");
         let data = b"Welcome to the information age.";
 
-        let err = write_file(&path, &data.to_vec(), true, false).unwrap_err();
+        let err = write_file(&path, data.as_ref(), true, false).unwrap_err();
 
         assert!(matches!(err, Error::StdIo(_)));
     }
@@ -312,7 +312,7 @@ mod tests {
         let path = create_relative_path_no_parent("test_write_file_ok_create_parent_dir");
         let data = b"Welcome to the information age.";
 
-        write_file(&path, &data.to_vec(), true, true).unwrap();
+        write_file(&path, data.as_ref(), true, true).unwrap();
 
         let result = read_file(&path).unwrap();
 

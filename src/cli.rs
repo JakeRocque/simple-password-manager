@@ -127,7 +127,7 @@ fn get_inputs(
     gen_salt: bool,
     allow_piped_password: bool,
 ) -> Result<(PathBuf, [u8; 16], Zeroizing<String>)> {
-    let true_path = get_path_dir_to_vault_path(&path)?;
+    let true_path = get_path_dir_to_vault_path(path)?;
 
     let salt = if gen_salt {
         generate_salt()
@@ -145,8 +145,8 @@ fn eval() -> Result<Zeroizing<String>> {
 
     match args.command {
         Commands::Health { path } => match is_vault_init(&get_path_dir_to_vault_path(&path)?) {
-            true => return Ok(Zeroizing::new("Vault initialized.".to_string())),
-            false => return Ok(Zeroizing::new("Vault not initialized.".to_string())),
+            true => Ok(Zeroizing::new("Vault initialized.".to_string())),
+            false => Ok(Zeroizing::new("Vault not initialized.".to_string())),
         },
         Commands::DefaultLocation {} => Ok(Zeroizing::new(
             get_path_dir_to_vault_path(&get_vault_path_dir())?
